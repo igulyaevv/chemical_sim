@@ -1,0 +1,8 @@
+/app.log
+/venv/
+/.venv/
+/.idea
+*.log
+*.env
+*.txt
+__pycache__
