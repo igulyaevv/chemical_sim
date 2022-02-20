@@ -41,6 +41,15 @@ class Board(Drawable):
         return Cell(row, j)
 
     def CheckCluster(self, current: Cell, candidates: list, tempPlace: list) -> None:
+        x = current.x
+        y = current.y
+        cur_val = self.place[x][y] if 0 <= x < self.rows and 0 <= y < self.columns else -2
+        if x - 1 >= 0 and x + 1 < self.rows and y - 1 >= 0 and y + 1 < self.columns and \
+                self.place[x - 1][y] == cur_val and self.place[x + 1][y] == cur_val and \
+                self.place[x][y - 1] == cur_val and self.place[x][y + 1] == cur_val and \
+                self.place[x + 1][y + 1] == cur_val and self.place[x - 1][y + 1] == cur_val and \
+                self.place[x + 1][y - 1] == cur_val and self.place[x - 1][y - 1] == cur_val:
+            return
         if 0 <= current.x < self.rows and 0 <= current.y < self.columns and self.place[current.x][current.y] != -1 \
                 and tempPlace[current.x][current.y] != 1:
             candidate = Cell(current.x, current.y)

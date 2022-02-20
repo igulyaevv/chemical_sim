@@ -62,7 +62,11 @@ class ChemicalApp(Drawer):  # (tk)
 
         self.btb_run = tk.Button(self.sidebar, text="Run", command=self.run_btn)
         self.btn_pause = tk.Button(self.sidebar, text="Pause", command=self.pause_btn)
+        self.btn_restart = tk.Button(self.sidebar, text="Rerun", command=self.restart_btn)
         self.btn_pause["state"] = "disabled"
+        self.btn_restart["state"] = "disabled"
+        self.btn_result = tk.Button(self.sidebar, text="Result", command=self.result_btn)
+        self.btn_result["state"] = "disabled"
         self.btn_openconfig = tk.Button(self.sidebar, text="Открыть конфиг", command=self.open_configfile)
         self.btn_saveconfig = tk.Button(self.sidebar, text="Сохранить конфиг", command=self.save_configfile)
 
@@ -80,8 +84,10 @@ class ChemicalApp(Drawer):  # (tk)
             text = input_file.readlines()
             if len(text) < 6:
                 messagebox.showinfo("Warning", "Bad config")
+                self.is_exit = True
                 return
             else:
+                self.is_exit = False
                 self.textbox_height.insert(0, text[0].replace('\n', ''))
                 self.combobox_mode.insert(0, "Переменнотоковый" if text[1].replace('\n', '') == '1'
                                                                 else "Постояннотоковый")
@@ -119,7 +125,9 @@ class ChemicalApp(Drawer):  # (tk)
         if self.textbox_height.get() == '' or self.combobox_mode.get() == '' or self.textbox_create.get() == '' \
                 or self.textbox_ts.get() == '' or self.textbox_margin.get() == '' or self.textbox_count.get() == '':
             messagebox.showinfo("Warning", "Заполнены не все поля")
+            self.is_exit = True
             return
+        self.is_exit = False
         self.N = int(self.textbox_height.get())
         self.mode = 1 if self.combobox_mode.get() == "Переменнотоковый" else 0
         self.b = float(self.textbox_create.get())
@@ -157,13 +165,18 @@ class ChemicalApp(Drawer):  # (tk)
         self.stat_avg_weight.place(x=10, y=160)
         self.stat_span_weight.place(x=10, y=210)
 
-        self.btb_run.place(x=12, y=325, width=int(self.SIDEBAR_W / 3))  # int(self.SIDEBAR_W / 3) - 10
+        self.btb_run.place(x=12, y=325, width=int(self.SIDEBAR_W / 3))
         self.btn_pause.place(x=12, y=350, width=int(self.SIDEBAR_W / 3))
-        self.btn_openconfig.place(x=12, y=400)
-        self.btn_saveconfig.place(x=12, y=425)
+        self.btn_restart.place(x=12, y=375, width=int(self.SIDEBAR_W / 3))
+        self.btn_result.place(x=self.SIDEBAR_W - 20 - int(self.SIDEBAR_W / 3), y=350, width=int(self.SIDEBAR_W / 3))
+        self.btn_openconfig.place(x=12, y=425)
+        self.btn_saveconfig.place(x=12, y=450)
 
     def run_btn(self) -> None:
         self.set_params()
+
+        if self.is_exit:
+            return
 
         if not self.board:
             self.board = Board(self.N, self.b, self.ts, self.u, self.mode)
@@ -177,12 +190,51 @@ class ChemicalApp(Drawer):  # (tk)
 
         self.btb_run["state"] = "disabled"
         self.btn_pause["state"] = "active"
+        self.btn_restart["state"] = "disabled"
+        self.btn_result["state"] = "active"
         self.run()
 
     def pause_btn(self) -> None:
         self.is_exit = True
         self.btn_pause["state"] = "disabled"
+        self.btn_restart["state"] = "active"
         self.btb_run["state"] = "active"
+
+    def result_btn(self) -> None:
+        if self.board:
+            with open("WeightAnalysis.txt", 'w') as file:
+                for key, value in self.board.create_bar().items():
+                    for i in range(value):
+                        file.write(str(key) + ' ')
+
+    def restart_btn(self):
+        if self.board:
+            self.board = None
+
+        self.textbox_height.delete(0, 'end')
+        self.combobox_mode.delete(0, 'end')
+        self.textbox_create.delete(0, 'end')
+        self.textbox_ts.delete(0, 'end')
+        self.textbox_margin.delete(0, 'end')
+
+        self.textbox_height["state"] = "normal"
+        self.combobox_mode["state"] = "normal"
+        self.textbox_create["state"] = "normal"
+        self.textbox_ts["state"] = "normal"
+        self.textbox_margin["state"] = "normal"
+
+        self.btn_result["state"] = "disabled"
+
+        if self.graph:
+            self.graph.get_tk_widget().destroy()
+
+        self.stat_atoms.config(text='')
+        self.stat_atoms_wasted.config(text='')
+        self.stat_med_weight.config(text='')
+        self.stat_avg_weight.config(text='')
+        self.stat_span_weight.config(text='')
+
+        self.canvas.delete("all")
 
     def get_graph(self) -> None:
         if self.graph:
@@ -226,7 +278,6 @@ class ChemicalApp(Drawer):  # (tk)
         self.window.mainloop()
 
     def run(self) -> None:
-        self.is_exit = False
         while self.G > 0 and not self.is_exit:
             self.board.Run()
             self.canvas.delete("all")
