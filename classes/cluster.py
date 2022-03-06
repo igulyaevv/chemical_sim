@@ -2,18 +2,18 @@ import random
 
 from . import Cell
 
+random.seed()
+
 
 class Cluster:
     IndexCluster = 0
 
     def __init__(self):
-        random.seed()
-
         self.atoms = []
         self.isOnTheSurface = True
         self.isDeleted = False
         self.isUp = True
-        randway = 0.001 * (random.randint(0, 32767) % 1001)
+        randway = random.random()
         if randway > 0.5:
             self.isUp = False
         self.clusterNumber = Cluster.IndexCluster + 1
@@ -32,29 +32,27 @@ class Cluster:
         self.isOnTheSurface = False
         for i in range(step):
             for j in range(len(self.atoms)):
-                self.atoms[j].y = self.atoms[j].y + 1
+                self.atoms[j].y += 1
         self.DefineMinMax()
 
     def Transition(self, step: int, rows: int):
         for i in range(step):
             if self.isUp:
                 for j in range(len(self.atoms)):
-                    self.atoms[j].x = self.atoms[j].x - 1
-                self.DefineMinMax()
-                if self.max.x < 0 or self.min.x >= rows:
-                    self.isDeleted = True
-            else:
-                for j in range(len(self.atoms)):
-                    self.atoms[j].x = self.atoms[j].x + 1
+                    self.atoms[j].x += 1 if not self.isUp else -1
                 self.DefineMinMax()
                 if self.max.x < 0 or self.min.x >= rows:
                     self.isDeleted = True
 
-    def Merger(self, found: int, clusters: list) -> None:
-        for i in range(clusters[found].Size()):
-            self.Add_Atom(clusters[found].Atoms()[i])
-        self.isDeleted = self.isDeleted and clusters[found].IsDeleted()
-        self.isOnTheSurface = self.isOnTheSurface or clusters[found].IsOnTheSurface()
+    def Merger(self, cluster=None) -> None:
+        if not cluster:  # or type(cluster) != 'Cluster':
+            return
+        for item in cluster.Atoms():
+            if item in self.atoms:
+                continue
+            self.Add_Atom(item)
+        self.isDeleted = self.isDeleted and cluster.IsDeleted()
+        self.isOnTheSurface = self.isOnTheSurface or cluster.IsOnTheSurface()
 
     def Size(self) -> int:
         return len(self.atoms)
@@ -119,7 +117,7 @@ class Cluster:
         return self.min
 
     def NotIsMerged(self) -> None:
-        self.isMerged = not self.isMerged
+        self.isMerged = False
 
     def IsMerged(self) -> bool:
         return self.isMerged

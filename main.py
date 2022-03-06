@@ -1,3 +1,6 @@
+import datetime
+import time
+
 from classes import Board
 from classes.Drawer import Drawer
 
@@ -9,6 +12,15 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 
+def run_time(func):
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        print(time.time()-start_time)
+        return result
+    return wrapper
+
+
 class ChemicalApp(Drawer):  # (tk)
     def __init__(self) -> None:
         self.N = 0
@@ -17,6 +29,8 @@ class ChemicalApp(Drawer):  # (tk)
         self.ts = 0.0
         self.u = 0.0
         self.G = 0
+
+        self._time = None
 
         self.WIN_W = 1280
         self.WIN_H = 720
@@ -56,11 +70,14 @@ class ChemicalApp(Drawer):  # (tk)
 
         self.stat_atoms = tk.Label(self.statbar)
         self.stat_atoms_wasted = tk.Label(self.statbar)
+        self.stat_clusters_count = tk.Label(self.statbar)
         self.stat_med_weight = tk.Label(self.statbar)
         self.stat_avg_weight = tk.Label(self.statbar)
         self.stat_span_weight = tk.Label(self.statbar)
 
         self.btb_run = tk.Button(self.sidebar, text="Run", command=self.run_btn)
+        self.check_run = tk.BooleanVar()
+        self.cb_run = tk.Checkbutton(self.sidebar, text="No UI", variable=self.check_run)
         self.btn_pause = tk.Button(self.sidebar, text="Pause", command=self.pause_btn)
         self.btn_restart = tk.Button(self.sidebar, text="Rerun", command=self.restart_btn)
         self.btn_pause["state"] = "disabled"
@@ -161,11 +178,13 @@ class ChemicalApp(Drawer):  # (tk)
 
         self.stat_atoms.place(x=10, y=10)
         self.stat_atoms_wasted.place(x=10, y=60)
-        self.stat_med_weight.place(x=10, y=110)
-        self.stat_avg_weight.place(x=10, y=160)
-        self.stat_span_weight.place(x=10, y=210)
+        self.stat_clusters_count.place(x=10, y=110)
+        self.stat_med_weight.place(x=10, y=160)
+        self.stat_avg_weight.place(x=10, y=210)
+        self.stat_span_weight.place(x=10, y=260)
 
         self.btb_run.place(x=12, y=325, width=int(self.SIDEBAR_W / 3))
+        self.cb_run.place(x=int(self.SIDEBAR_W / 3) + 20, y=325, width=int(self.SIDEBAR_W / 3))
         self.btn_pause.place(x=12, y=350, width=int(self.SIDEBAR_W / 3))
         self.btn_restart.place(x=12, y=375, width=int(self.SIDEBAR_W / 3))
         self.btn_result.place(x=self.SIDEBAR_W - 20 - int(self.SIDEBAR_W / 3), y=350, width=int(self.SIDEBAR_W / 3))
@@ -180,6 +199,7 @@ class ChemicalApp(Drawer):  # (tk)
 
         if not self.board:
             self.board = Board(self.N, self.b, self.ts, self.u, self.mode)
+            self._time = datetime.datetime.now()
             self.textbox_height["state"] = "disabled"
             self.combobox_mode["state"] = "disabled"
             self.textbox_create["state"] = "disabled"
@@ -202,10 +222,12 @@ class ChemicalApp(Drawer):  # (tk)
 
     def result_btn(self) -> None:
         if self.board:
-            with open("WeightAnalysis.txt", 'w') as file:
-                for key, value in self.board.create_bar().items():
-                    for i in range(value):
+            with open(f"results\\WeightAnalysis-{self._time.strftime('%Y-%m-%d-%H-%M-%S')}.txt", 'w') as file:
+                _dict = self.board.create_bar()
+                for key in sorted(_dict.keys()):
+                    for i in range(_dict[key]):
                         file.write(str(key) + ' ')
+            self.board.clusters_conclusion(self._time.strftime('%Y-%m-%d-%H-%M-%S'))
 
     def restart_btn(self):
         if self.board:
@@ -230,6 +252,7 @@ class ChemicalApp(Drawer):  # (tk)
 
         self.stat_atoms.config(text='')
         self.stat_atoms_wasted.config(text='')
+        self.stat_clusters_count.config(text='')
         self.stat_med_weight.config(text='')
         self.stat_avg_weight.config(text='')
         self.stat_span_weight.config(text='')
@@ -241,7 +264,6 @@ class ChemicalApp(Drawer):  # (tk)
             self.graph.get_tk_widget().destroy()
 
         dictionary = self.board.create_bar()
-        print(dictionary)
 
         fig = Figure(figsize=((self.GRAPHBAR_W - 10) / 100, (self.GRAPHBAR_H - 10) / 100), dpi=100)
         ax = fig.add_subplot(111)
@@ -257,6 +279,7 @@ class ChemicalApp(Drawer):  # (tk)
         stat = self.board.conclusion_dict()
         self.stat_atoms.config(text=f"Всего присоединилось атомов: {stat.get('atoms')}")
         self.stat_atoms_wasted.config(text=f"Потеряно атомов: {stat.get('loss')}")
+        self.stat_clusters_count.config(text=f"Количество кластеров: {stat.get('clusters_count')}")
         self.stat_med_weight.config(text=f"Медиана веса кластеров: {stat.get('med')}")
         self.stat_avg_weight.config(text=f"Среднее значение веса кластеров: {stat.get('avg')}")
         self.stat_span_weight.config(text=f"Размах веса кластеров: {stat.get('span')}")
@@ -277,14 +300,16 @@ class ChemicalApp(Drawer):  # (tk)
         self.configurate()
         self.window.mainloop()
 
+    @run_time
     def run(self) -> None:
         while self.G > 0 and not self.is_exit:
             self.board.Run()
-            self.canvas.delete("all")
-            self.board.draw(self)
-            self.canvas.update()
-            self.get_graph()
-            self.get_stat()
+            if not self.check_run.get():
+                self.canvas.delete("all")
+                self.board.draw(self)
+                self.canvas.update()
+                self.get_graph()
+                self.get_stat()
             self.G -= 1
             self.textbox_count.delete(0, 'end')
             self.textbox_count.insert(0, str(self.G))
@@ -360,7 +385,7 @@ def main():
     while step < G:
         board.Run()
         step += 1
-    board.Conclusion()
+    board.clusters_conclusion()
 
     print('\nДля выхода введите любой символ')
     vote = input()
