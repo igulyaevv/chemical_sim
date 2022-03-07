@@ -2,7 +2,7 @@ import datetime
 import time
 
 from classes import Board
-from classes.Drawer import Drawer
+from interfaces.Drawer import Drawer
 
 import tkinter as tk
 from tkinter import ttk, messagebox, HORIZONTAL

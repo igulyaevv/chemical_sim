@@ -3,8 +3,8 @@ from . import Cluster
 
 import random
 
-from .Drawer import Drawer
-from .Drawable import Drawable
+from interfaces.Drawer import Drawer
+from interfaces.Drawable import Drawable
 
 random.seed()
 
@@ -312,11 +312,14 @@ class Board(Drawable):
                 if self.place[t][k] == 0:
                     notinCluster += 1
 
+        lengths = [i.Size() for i in self.clusters.values()]
+        lengths.sort()
+
         return {'atoms': self.atoms,
-                'loss': self.atoms - avg - notinCluster,
+                'loss': 0, # self.atoms - avg - notinCluster,
                 'avg': avg / len(self.clusters) if len(self.clusters) != 0 else 0,
-                'med': 0, # (self.clusters[int(len(self.clusters) / 2)].Size() if len(self.clusters) % 2 == 0 or len(self.clusters) == 1 or len(self.clusters) == 0 else (self.clusters[int(len(self.clusters) / 2)].Size() + self.clusters[int(len(self.clusters) / 2) + 1].Size()) / 2) if len(self.clusters) > 0 else 0,
-                'span': 0, # self.clusters[len(self.clusters) - 1].Size() - self.clusters[0].Size() if len(self.clusters) > 0 else 0
+                'med': (lengths[int(len(lengths) / 2)] if len(lengths) % 2 == 0 or len(lengths) == 1 or len(lengths) == 0 else (lengths[int(len(lengths) / 2)] + lengths[int(len(lengths) / 2) + 1]) / 2) if len(lengths) > 0 else 0,
+                'span': lengths[-1] - lengths[0] if len(lengths) > 0 else 0,
                 'clusters_count': len(self.clusters)
                 }
 
