@@ -9,7 +9,14 @@ class Cell:
                     self.y == other.y)
         return NotImplemented
 
-    # get_x();
-    # get_y();
-    # set_x(int i);
-    # set_y(int j);
+    def get_x(self):
+        return self.x
+
+    def get_y(self):
+        return self.y
+
+    def set_x(self, i: int = None):
+        self.x = i
+
+    def set_y(self, j: int = None):
+        self.y = j
