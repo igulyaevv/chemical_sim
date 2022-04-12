@@ -21,7 +21,9 @@ class ChemicalApp(Drawer):  # (tk)
         self.ts = 0.0
         self.u = 0.0
         self.G = 0
+        self.current_G = 0
         self.eps = None
+        self.current_eps = None
 
         self._time = None
 
@@ -125,7 +127,7 @@ class ChemicalApp(Drawer):  # (tk)
             return
         with open(filepath, 'w') as output_file:
             self.set_params()
-            for item in [self.N, self.mode, self.b, self.ts, self.u, self.G]:
+            for item in [self.N, self.mode, self.b, self.ts, self.u, self.current_G]:
                 output_file.write(str(item) + '\n')
         self.window.title(f"Chemical Simulator - {filepath}")
 
@@ -153,9 +155,13 @@ class ChemicalApp(Drawer):  # (tk)
         self.b = float(self.textbox_create.get())
         self.ts = float(self.textbox_ts.get())
         self.u = float(self.textbox_margin.get())
-        self.G = int(self.textbox_count.get())
+        self.current_G = int(self.textbox_count.get())
+        if self.G == 0 or self.G is None:
+            self.G = self.current_G
 
         self.eps = float(self.textbox_eps.get()) if self.combobox_algo.get() == DOWNHILL else None
+        if self.eps is not None and self.current_eps is None:
+            self.current_eps = self.eps + 1
 
     def configurate(self) -> None:
         self.window.config(width=self.WIN_W, height=self.WIN_H)
@@ -217,7 +223,7 @@ class ChemicalApp(Drawer):  # (tk)
             self.textbox_ts["state"] = "disabled"
             self.textbox_margin["state"] = "disabled"
         else:
-            self.G = int(self.textbox_count.get()) if self.textbox_count and self.textbox_count != '' else 0
+            self.current_G = int(self.textbox_count.get()) if self.textbox_count and self.textbox_count != '' else 0
 
         self.combobox_algo["state"] = "disabled"
         self.btb_run["state"] = "disabled"
@@ -227,11 +233,36 @@ class ChemicalApp(Drawer):  # (tk)
 
         if self.combobox_algo.get() == DEFAULT:
             self.run()
+            self.is_exit = False
+            self.btn_pause["state"] = "disabled"
+            self.btb_run["state"] = "active"
         elif self.combobox_algo.get() == DOWNHILL:
             self.textbox_eps["state"] = "disabled"
-            self.downhill_run()
+            while self.current_eps > self.eps:
+                self.run()
+                if self.is_exit:
+                    self.is_exit = False
+                    return
+                self.current_eps = self.current_eps - 0.1  # TODO: подвести расчет
+                self.current_G = self.G
+                self.board = Board(self.N, self.b / 2, self.ts / 2, self.u / 2, self.mode)  # TODO: with new params
         elif self.combobox_algo.get() == NONE:
             messagebox.showinfo("Warning", "Метод не реализован!")
+
+    @run_time
+    def run(self) -> None:
+        while self.current_G > 0 and not self.is_exit:
+            self.board.Run()
+            if self.check_run.get() is False:
+                self.canvas.delete("all")
+                self.board.draw(self)
+                self.draw_graph()
+                self.draw_stat()
+            self.current_G -= 1
+            self.textbox_count.delete(0, 'end')
+            self.textbox_count.insert(0, str(self.current_G))
+            self.window.update()
+            self.window.after(self.scale_sleep.get() * 1000)
 
     def default_run(self):
         pass
@@ -332,21 +363,3 @@ class ChemicalApp(Drawer):  # (tk)
     def start(self) -> None:
         self.configurate()
         self.window.mainloop()
-
-    @run_time
-    def run(self) -> None:
-        while self.G > 0 and not self.is_exit:
-            self.board.Run()
-            if self.check_run.get() is False:
-                self.canvas.delete("all")
-                self.board.draw(self)
-                self.draw_graph()
-                self.draw_stat()
-            self.G -= 1
-            self.textbox_count.delete(0, 'end')
-            self.textbox_count.insert(0, str(self.G))
-            self.window.update()
-            self.window.after(self.scale_sleep.get() * 1000)
-        self.is_exit = False
-        self.btn_pause["state"] = "disabled"
-        self.btb_run["state"] = "active"
