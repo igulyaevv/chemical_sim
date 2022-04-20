@@ -248,6 +248,7 @@ class ChemicalApp(Drawer):  # (tk)
                 self.board = Board(self.N, self.b / 2, self.ts / 2, self.u / 2, self.mode)  # TODO: with new params
         elif self.combobox_algo.get() == NONE:
             messagebox.showinfo("Warning", "Метод не реализован!")
+        self.pause_btn()
 
     @run_time
     def run(self) -> None:
@@ -288,6 +289,8 @@ class ChemicalApp(Drawer):  # (tk)
     def restart_btn(self):
         if self.board:
             self.board = None
+            self.G = 0
+            self.current_eps = None
 
         self.textbox_height.delete(0, 'end')
         self.combobox_mode.delete(0, 'end')
