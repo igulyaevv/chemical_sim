@@ -68,7 +68,7 @@ class ChemicalApp(Drawer):  # (tk)
         self.textbox_eps = tk.Entry(self.sidebar, validate="key", validatecommand=self.vcmd)
         self.textbox_eps["state"] = "disabled"
 
-        self.btb_run = tk.Button(self.sidebar, text="Run", command=self.run_btn)
+        self.btb_run = tk.Button(self.sidebar, text="run", command=self.run_btn)
         self.check_run = tk.BooleanVar()
         self.cb_run = tk.Checkbutton(self.sidebar, text="No UI", variable=self.check_run)
         self.btn_pause = tk.Button(self.sidebar, text="Pause", command=self.pause_btn)
@@ -253,7 +253,7 @@ class ChemicalApp(Drawer):  # (tk)
     @run_time
     def run(self) -> None:
         while self.current_G > 0 and not self.is_exit:
-            self.board.Run()
+            self.board.run()
             if self.check_run.get() is False:
                 self.canvas.delete("all")
                 self.board.draw(self)

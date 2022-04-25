@@ -1,6 +1,7 @@
 import random
 
 from . import Cell
+from resources.constants import Status
 
 random.seed()
 
@@ -10,8 +11,7 @@ class Cluster:
 
     def __init__(self):
         self.atoms = []
-        self.isOnTheSurface = True
-        self.isDeleted = False
+        self.status = Status.ON_SURFACE
         self.isUp = True
         randway = random.random()
         if randway > 0.5:
@@ -22,102 +22,69 @@ class Cluster:
         self.min = Cell()
         self.max = Cell()
 
-        self.isMerged = False
-
-    def Add_Atom(self, atom: Cell) -> None:
+    def add_atom(self, atom: Cell) -> None:
         self.atoms.append(atom)
-        self.DefineMinMax()
+        self.define_rect_border()
 
-    def Separation(self, step: int) -> None:
-        self.isOnTheSurface = False
-        for i in range(step):
+    def separation(self) -> None:
+        self.status = Status.BREAKING_AWAY
+        for j in range(len(self.atoms)):
+            self.atoms[j].y += 1
+        self.define_rect_border()
+
+    def transition(self, rows: int):  # TODO: убрать из параметров rows (либо переместить, либо перенести управление)
+        if self.isUp:
             for j in range(len(self.atoms)):
-                self.atoms[j].y += 1
-        self.DefineMinMax()
+                self.atoms[j].x += 1 if not self.isUp else -1
+            self.define_rect_border()
+            if self.max.x < 0 or self.min.x >= rows:
+                self.status = Status.OFF_SURFACE
 
-    def Transition(self, step: int, rows: int):
-        for i in range(step):
-            if self.isUp:
-                for j in range(len(self.atoms)):
-                    self.atoms[j].x += 1 if not self.isUp else -1
-                self.DefineMinMax()
-                if self.max.x < 0 or self.min.x >= rows:
-                    self.isDeleted = True
-
-    def Merger(self, cluster=None) -> None:
+    def merger(self, cluster=None) -> None:
         if not cluster:  # or type(cluster) != 'Cluster':
             return
         for item in cluster.Atoms():
             if item in self.atoms:
                 continue
-            self.Add_Atom(item)
-        self.isDeleted = self.isDeleted and cluster.IsDeleted()
-        self.isOnTheSurface = self.isOnTheSurface or cluster.IsOnTheSurface()
+            self.add_atom(item)
+        # TODO: продумать логику статусов
+        # TODO: возможно метод стоит убрать и перенести управление в композит
 
-    def Size(self) -> int:
+    def size(self) -> int:
         return len(self.atoms)
 
-    def Number(self) -> int:
-        return self.clusterNumber
+    def number(self) -> int:
+        return self.clusterNumber  # TODO: реализовать property ?
 
-    def IsOnTheSurface(self) -> bool:
-        return self.isOnTheSurface
+    def status(self) -> Status:
+        return self.status  # TODO: реализовать property ?
 
-    def IsDeleted(self) -> bool:
-        return self.isDeleted
-
-    def IsUp(self) -> bool:
+    def is_up(self) -> bool:
         return self.isUp
 
-    def ChangeWay(self) -> None:
+    def change_way(self) -> None:
         self.isUp = not self.isUp
 
-    def DefineMinMax(self) -> None:
-        x_min = self.atoms[0].x
-        x_max = self.atoms[0].x
-        y_min = self.atoms[0].y
-        y_max = self.atoms[0].y
-        temp = 0
+    def define_rect_border(self) -> None:
+        self.adjoined = sum([1 if i.y == 0 else 0 for i in self.atoms])
+        self.max.x = max([i.x for i in self.atoms])
+        self.max.y = max([i.y for i in self.atoms])
+        self.min.x = min([i.x for i in self.atoms])
+        self.min.y = min([i.y for i in self.atoms])
 
-        for i in range(len(self.atoms)):
-            if self.atoms[i].x < x_min:
-                x_min = self.atoms[i].x
-            if self.atoms[i].x > x_max:
-                x_max = self.atoms[i].x
-
-            if self.atoms[i].y < y_min:
-                y_min = self.atoms[i].y
-            if self.atoms[i].y > y_max:
-                y_max = self.atoms[i].y
-
-            if self.atoms[i].y == 0:
-                temp += 1
-
-        self.adjoined = temp
-        self.max.x = x_max
-        self.max.y = y_max
-        self.min.x = x_min
-        self.min.y = y_min
-
-        if y_min != 0:
-            self.isOnTheSurface = False
+        if self.min.y != 0:
+            self.status = False  # TODO: продумать логику статусов
         else:
-            self.isOnTheSurface = True
+            self.status = True
 
-    def Adjoined(self) -> int:
-        return self.adjoined
+    def adjoined(self) -> int:
+        return self.adjoined  # TODO: реализовать property ?
 
     def Atoms(self) -> list:
-        return self.atoms
+        return self.atoms  # TODO: Удалить метод
 
-    def Max(self) -> Cell:
+    def border_right(self) -> Cell:
         return self.max
 
-    def Min(self) -> Cell:
+    def border_left(self) -> Cell:
         return self.min
-
-    def NotIsMerged(self) -> None:
-        self.isMerged = False
-
-    def IsMerged(self) -> bool:
-        return self.isMerged

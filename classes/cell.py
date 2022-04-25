@@ -1,3 +1,5 @@
+# TODO: нужен ли этот класс?
+
 class Cell:
     def __init__(self, x: int = 0, y: int = 0) -> None:
         self.x = x  # i
@@ -9,7 +11,7 @@ class Cell:
                     self.y == other.y)
         return NotImplemented
 
-    def get_x(self):
+    def get_x(self):  # TODO: заменить на property
         return self.x
 
     def get_y(self):
