@@ -1,6 +1,6 @@
 import datetime
 from resources.utilities import run_time
-from resources.constants import CONST, VAR, DEFAULT, DOWNHILL, NONE
+from resources.constants import CONST, VAR, DEFAULT, DOWNHILL, TPE
 
 from classes import Board
 from interfaces.Drawer import Drawer
@@ -49,7 +49,7 @@ class ChemicalApp(Drawer):  # (tk)
         self.graph = None
 
         self.label_modelling = tk.Label(self.sidebar, text="Режим работы")
-        self.combobox_algo = ttk.Combobox(self.sidebar, values=[DEFAULT, DOWNHILL, NONE])
+        self.combobox_algo = ttk.Combobox(self.sidebar, values=[DEFAULT, DOWNHILL, TPE])
         self.combobox_algo.bind("<<ComboboxSelected>>", self.change_eps_visible)
         self.label_height = tk.Label(self.sidebar, text="Размер поверхности")
         self.textbox_height = tk.Entry(self.sidebar, validate="key", validatecommand=self.vcmd)
@@ -68,7 +68,7 @@ class ChemicalApp(Drawer):  # (tk)
         self.textbox_eps = tk.Entry(self.sidebar, validate="key", validatecommand=self.vcmd)
         self.textbox_eps["state"] = "disabled"
 
-        self.btb_run = tk.Button(self.sidebar, text="run", command=self.run_btn)
+        self.btb_run = tk.Button(self.sidebar, text="Run", command=self.run_btn)
         self.check_run = tk.BooleanVar()
         self.cb_run = tk.Checkbutton(self.sidebar, text="No UI", variable=self.check_run)
         self.btn_pause = tk.Button(self.sidebar, text="Pause", command=self.pause_btn)
@@ -84,7 +84,6 @@ class ChemicalApp(Drawer):  # (tk)
         self.scale_sleep = tk.Scale(self.sidebar, from_=0, to=5, orient=HORIZONTAL)
 
         self.stat_atoms = tk.Label(self.statbar)
-        self.stat_atoms_wasted = tk.Label(self.statbar)
         self.stat_clusters_count = tk.Label(self.statbar)
         self.stat_med_weight = tk.Label(self.statbar)
         self.stat_avg_weight = tk.Label(self.statbar)
@@ -202,11 +201,10 @@ class ChemicalApp(Drawer):  # (tk)
         self.scale_sleep.place(x=12, y=630)
 
         self.stat_atoms.place(x=10, y=10)
-        self.stat_atoms_wasted.place(x=10, y=60)
-        self.stat_clusters_count.place(x=10, y=110)
-        self.stat_med_weight.place(x=10, y=160)
-        self.stat_avg_weight.place(x=10, y=210)
-        self.stat_span_weight.place(x=10, y=260)
+        self.stat_clusters_count.place(x=10, y=60)
+        self.stat_med_weight.place(x=10, y=110)
+        self.stat_avg_weight.place(x=10, y=160)
+        self.stat_span_weight.place(x=10, y=210)
 
     def run_btn(self) -> None:
         self.set_params()
@@ -246,8 +244,16 @@ class ChemicalApp(Drawer):  # (tk)
                 self.current_eps = self.current_eps - 0.1  # TODO: подвести расчет
                 self.current_G = self.G
                 self.board = Board(self.N, self.b / 2, self.ts / 2, self.u / 2, self.mode)  # TODO: with new params
-        elif self.combobox_algo.get() == NONE:
-            messagebox.showinfo("Warning", "Метод не реализован!")
+        elif self.combobox_algo.get() == TPE:
+            self.textbox_eps["state"] = "disabled"
+            while self.current_eps > self.eps:
+                self.run()
+                if self.is_exit:
+                    self.is_exit = False
+                    return
+                self.current_eps = self.current_eps - 0.1  # TODO: подвести расчет
+                self.current_G = self.G
+                self.board = Board(self.N, self.b / 2, self.ts / 2, self.u / 2, self.mode)  # TODO: with new params
         self.pause_btn()
 
     @run_time
@@ -312,7 +318,6 @@ class ChemicalApp(Drawer):  # (tk)
             self.graph.get_tk_widget().destroy()
 
         self.stat_atoms.config(text='')
-        self.stat_atoms_wasted.config(text='')
         self.stat_clusters_count.config(text='')
         self.stat_med_weight.config(text='')
         self.stat_avg_weight.config(text='')
@@ -351,7 +356,6 @@ class ChemicalApp(Drawer):  # (tk)
     def draw_stat(self) -> None:
         stat = self.board.conclusion_dict()
         self.stat_atoms.config(text=f"Всего присоединилось атомов: {stat.get('atoms')}")
-        self.stat_atoms_wasted.config(text=f"Потеряно атомов: {stat.get('loss')}")
         self.stat_clusters_count.config(text=f"Количество кластеров: {stat.get('clusters_count')}")
         self.stat_med_weight.config(text=f"Медиана веса кластеров: {stat.get('med')}")
         self.stat_avg_weight.config(text=f"Среднее значение веса кластеров: {stat.get('avg')}")

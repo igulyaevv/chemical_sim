@@ -7,7 +7,7 @@ VAR = "Переменнотоковый"
 # Algorithms
 DEFAULT = "Обычный запуск"
 DOWNHILL = "Покоординатный спуск"
-NONE = "???"
+TPE = "TPE"
 
 RESIZE = 3
 
@@ -17,4 +17,5 @@ class Status(Enum):
     BREAKING_AWAY = 2
     UP_ALONG_SURFACE = 3
     DOWN_ALONG_SURFACE = 4
-    OFF_SURFACE = 5
+    MERGING = 5
+    OFF_SURFACE = 6

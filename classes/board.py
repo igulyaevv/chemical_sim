@@ -2,6 +2,7 @@ from . import Cell
 from . import Cluster
 
 import random
+import statistics
 
 from interfaces.Drawer import Drawer
 from interfaces.Drawable import Drawable
@@ -52,7 +53,7 @@ class Board(Drawable):
             temp_place[x][y] = 1
             candidates.append(Cell(x, y))
 
-            self.check_cluster(Cell(x - 1, y), candidates, temp_place)
+            self.check_cluster(Cell(x - 1, y), candidates, temp_place)  # TODO: Возможно нужно все проверки перевести в эти вызовы и вызывать только подходящие ячейки, а не все
             self.check_cluster(Cell(x + 1, y), candidates, temp_place)
             self.check_cluster(Cell(x, y - 1), candidates, temp_place)
             self.check_cluster(Cell(x, y + 1), candidates, temp_place)
@@ -79,8 +80,8 @@ class Board(Drawable):
                 new_cluster = Cluster()
                 for item in candidates:
                     new_cluster.add_atom(item)
-                self.clusters[new_cluster.number()] = new_cluster
-                self.cluster_coloring(self.clusters.get(new_cluster.number()))
+                self.clusters[new_cluster.number] = new_cluster
+                self.cluster_coloring(self.clusters.get(new_cluster.number))
         else:
             merging = set()
             for item in candidates:
@@ -118,7 +119,7 @@ class Board(Drawable):
                         self.clusters[new_found].add_atom(item)
                         self.cluster_coloring(self.clusters.get(new_found))
             if len(merging) > 0:
-                self.cluster_merger([i for i in merging] + [min_clusternumber])
+                self.cluster_merger([i for i in merging] + [min_clusternumber])  # TODO: Сделать список слияния возвращаемым, чтобы использовать его вне метода, в управляющем методе
 
     def atom_transition(self, current: Cell) -> Cell:
         rand = random.choice((True, False))
@@ -134,7 +135,7 @@ class Board(Drawable):
         return current
 
     def check_cluster_for_clusters(self, found: int) -> None:
-        cluster_number = self.clusters[found].number()
+        cluster_number = self.clusters[found].number
         for i in range(self.clusters[found].size()):
             x = self.clusters[found].Atoms()[i].x
             y = self.clusters[found].Atoms()[i].y
@@ -164,7 +165,7 @@ class Board(Drawable):
             if item.y >= self.columns:
                 self.resize()
             if 0 <= item.x < self.rows and 0 <= item.y < self.columns:
-                self.place[item.x][item.y] = cluster.number()
+                self.place[item.x][item.y] = cluster.number
 
     def cluster_merger(self, candidates: list) -> None:
         if len(candidates) > 2:
@@ -242,23 +243,23 @@ class Board(Drawable):
         if self.mode == 1:
             create_atom_prob = random.random()
 
-        randcreate = random.random()
-        if randcreate <= create_atom_prob:
+        rand_create = random.random()
+        if rand_create <= create_atom_prob:
             self.atoms += 1
             position = random.randint(0, self.rows - 1)
             current = self.add_atom(position)
             self.create_cluster(current)
             if self.place[current.x][current.y] == 0:
-                randtransition = random.random()
-                if randtransition <= self.transitAtom:
+                rand_transition = random.random()
+                if rand_transition <= self.transitAtom:
                     current = self.atom_transition(current)                                                     # TODO: можно изменить логику, проверять наличие кластера только для кластеров при отсоединении
                     self.create_cluster(current)                                                                # а атомы присоединять сразу
             if self.place[current.x][current.y] > 0:
-                randseparation = random.random()
-                clusterNumber = self.place[current.x][current.y]
-                separationprob = 1.0 - float(self.clusters[clusterNumber].adjoined()) / float(self.clusters[clusterNumber].size())
-                if randseparation < separationprob:
-                    sep = self.clusters[clusterNumber].size() / 2 if self.clusters[clusterNumber].size() / 2 < self.rows else self.rows - 1
+                rand_separation = random.random()
+                cluster_number = self.place[current.x][current.y]
+                separation_prob = 1.0 - self.clusters[cluster_number].adjoined / self.clusters[cluster_number].size()
+                if rand_separation < separation_prob:
+                    sep = self.clusters[cluster_number].size() / 2 if self.clusters[cluster_number].size() / 2 < self.rows else self.rows - 1
                     new_separation = Cell(self.place[current.x][current.y], sep if sep >= 1 else 1)         # TODO: убрать Cell отсюда и добавить читаемые статусы
                     self.queue.append(new_separation)
             if len(self.queue) != 0:
@@ -277,18 +278,17 @@ class Board(Drawable):
         return d
 
     def conclusion_dict(self) -> dict:
-        avg = sum((value.size() if value.IsMerged() else 0 for value in self.clusters.values()))
-        not_in_cluster = sum((1 if self.place[i][j] == 0 else 0 for i in range(self.rows) for j in range(self.columns)))
+        lengths = [i.size() for i in self.clusters.values()] if len(self.clusters) > 0 else [0]
 
-        lengths = [i.size() for i in self.clusters.values()]
-        lengths.sort()
+        avg = statistics.mean(lengths)
+        med = statistics.median(lengths)
+        span = lengths[-1] - lengths[0]
 
         return {
             'atoms': self.atoms,
-            'loss': 0,  # self.atoms - avg - not_in_cluster,
-            'avg': avg / len(self.clusters) if len(self.clusters) != 0 else 0,
-            'med': (lengths[int(len(lengths) / 2)] if len(lengths) % 2 == 0 or len(lengths) == 1 or len(lengths) == 0 else (lengths[int(len(lengths) / 2)] + lengths[int(len(lengths) / 2) + 1]) / 2) if len(lengths) > 0 else 0,
-            'span': lengths[-1] - lengths[0] if len(lengths) > 0 else 0,
+            'avg': avg,
+            'med': med,
+            'span': span,
             'clusters_count': len(self.clusters)
         }
 
@@ -308,15 +308,16 @@ class Board(Drawable):
                 clusterinfo += 'Вне пределов области видимости\n\n'
 
             clusterinfo += 'Отрисовка кластера:\n\n'
-            for t in range(value.border_right().x - value.border_left().x + 1):
+            for i in range(value.border_right().x - value.border_left().x + 1):
                 for j in range(value.border_right().y - value.border_left().y + 1):
                     for k in range(value.size()):
-                        if value.Atoms()[k].x - value.border_left().x == t and value.Atoms()[k].y - value.border_left().y == j:
+                        if value.Atoms()[k].x - value.border_left().x == i and \
+                                value.Atoms()[k].y - value.border_left().y == j:
                             clusterinfo += '*'
                             break
                         if k == value.size() - 1:
                             clusterinfo += ' '
                 clusterinfo += '\n'
-                path = f'results\\ClusterN-{value.number()}-{_time}.txt'
+                path = f'results\\ClusterN-{value.number}-{_time}.txt'
                 with open(path, 'w') as file:
                     file.write(clusterinfo)
