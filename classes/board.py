@@ -4,8 +4,8 @@ from . import Cluster
 import random
 import statistics
 
-from interfaces.Drawer import Drawer
-from interfaces.Drawable import Drawable
+from interfaces.drawer import Drawer
+from interfaces.drawable import Drawable
 
 from resources.constants import RESIZE, Status
 

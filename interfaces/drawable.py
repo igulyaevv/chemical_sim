@@ -1,4 +1,4 @@
-from interfaces.Drawer import Drawer
+from interfaces.drawer import Drawer
 
 
 class Drawable:

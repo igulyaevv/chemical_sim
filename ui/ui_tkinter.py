@@ -3,7 +3,7 @@ from resources.utilities import run_time
 from resources.constants import CONST, VAR, DEFAULT, DOWNHILL, TPE
 
 from classes import Board
-from interfaces.Drawer import Drawer
+from interfaces.drawer import Drawer
 
 import tkinter as tk
 from tkinter import ttk, messagebox, HORIZONTAL
