@@ -1,50 +1,54 @@
-import random
-
 from . import Cell
 from resources.constants import Status
-
-random.seed()
 
 
 class Cluster:
     IndexCluster = 0
 
-    def __init__(self):
-        self.atoms = []
+    def __init__(self, limiter: int):
+        self._atoms = []
         self._status = Status.ON_SURFACE
         self._number = Cluster.IndexCluster + 1
         Cluster.IndexCluster += 1
         self._adjoined = 0
-        self.min = Cell()
+        self.min = Cell()  # TODO: возможно стоит заменить Cell на обычный список, т.к. это некорректное использование класса Cell
         self.max = Cell()
+        self.separation_limit = 0
+        self.limiter = limiter
 
     def add_atom(self, atom: Cell) -> None:
-        self.atoms.append(atom)
-        self.define_rect_border()
+        self._atoms.append(atom)
+
+        self.max.x = max(atom.x, self.max.x)
+        self.max.y = max(atom.y, self.max.y)
+        self.min.x = min(atom.x, self.min.x)
+        self.min.y = min(atom.y, self.min.y)
 
     def separation(self) -> None:
         self._status = Status.BREAKING_AWAY
-        for j in range(len(self.atoms)):
-            self.atoms[j].y += 1
+        for j in range(self.size()):
+            self._atoms[j].y += 1
         self.define_rect_border()
 
-    def transition(self, rows: int):  # TODO: убрать из параметров rows (либо переместить, либо перенести управление)
-        for j in range(len(self.atoms)):
-            self.atoms[j].x += 1 if self._status == Status.DOWN_ALONG_SURFACE else -1
+    def transition(self):
+        for j in range(self.size()):
+            self._atoms[j].x += 1 if self._status == Status.DOWN_ALONG_SURFACE else -1
         self.define_rect_border()
-        if self.max.x < 0 or self.min.x >= rows:
-            self._status = Status.OFF_SURFACE
 
     def merger(self, cluster) -> None:
-        for item in cluster.Atoms():
-            if item in self.atoms:
-                continue
-            self.add_atom(item)
-        # TODO: продумать логику статусов
-        # TODO: возможно метод стоит убрать и перенести управление в композит
+        for atom in cluster._atoms:
+            self.add_atom(atom)
+
+        self.define_rect_border()
+
+        if cluster.status == Status.BREAKING_AWAY:
+            self._status = Status.BREAKING_AWAY
 
     def size(self) -> int:
-        return len(self.atoms)
+        return len(self._atoms)
+
+    def speed(self) -> int:
+        return self.size()
 
     @property
     def number(self) -> int:
@@ -55,16 +59,24 @@ class Cluster:
         return self._status
 
     def define_rect_border(self) -> None:
-        self._adjoined = sum([1 if i.y == 0 else 0 for i in self.atoms])
-        self.max.x = max([i.x for i in self.atoms])
-        self.max.y = max([i.y for i in self.atoms])
-        self.min.x = min([i.x for i in self.atoms])
-        self.min.y = min([i.y for i in self.atoms])
+        self._adjoined = sum([1 if i.y == 0 else 0 for i in self._atoms])
+        self.max.x = max([i.x for i in self._atoms])
+        self.max.y = max([i.y for i in self._atoms])
+        self.min.x = min([i.x for i in self._atoms])
+        self.min.y = min([i.y for i in self._atoms])
 
-        if self.min.y != 0:
-            self._status = False  # TODO: продумать логику статусов
-        else:
-            self._status = True
+        if self.border_left().y == 0 and self.status != Status.BREAKING_AWAY:
+            self._status = Status.ON_SURFACE
+
+        if self.border_right().x < 0 or self.border_left().x >= self.limiter:
+            self._status = Status.OFF_SURFACE
+
+        self.separation_limit = self.size() / 2 if self.size() / 2 < self.limiter else self.limiter - 1
+
+    def can_separating(self) -> bool:
+        if self.border_right().x >= self.separation_limit:
+            return False
+        return True
 
     @property
     def adjoined(self) -> int:
@@ -75,3 +87,17 @@ class Cluster:
 
     def border_left(self) -> Cell:
         return self.min
+
+    def image(self) -> str:
+        image = ""
+        for i in range(self.border_right().x - self.border_left().x + 1):
+            for j in range(self.border_right().y - self.border_left().y + 1):
+                for k in range(self.size()):
+                    if self._atoms[k].x - self.border_left().x == i and self._atoms[k].y - self.border_left().y == j:
+                        image += '*'
+                        break
+                    if k == self.size() - 1:
+                        image += ' '
+            image += '\n'
+
+        return image

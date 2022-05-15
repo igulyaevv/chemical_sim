@@ -7,317 +7,337 @@ import statistics
 from interfaces.drawer import Drawer
 from interfaces.drawable import Drawable
 
-from resources.constants import RESIZE, Status
+from resources.constants import RESIZE, Status, status_definition
 
 random.seed()
 
 
 class Board(Drawable):
-    def __init__(self, rows: int, addprob: float, transitprob: float, mergeprob: float, mode: int = 0):
-        self.rows = rows
-        self.columns = RESIZE
-        self.place = [[-1] * self.columns for _ in range(self.rows)]
-        self.clusters = {}
-        self.mode = mode
-        self.createAtom = addprob
-        self.transitAtom = transitprob
-        self.mergeCluster = mergeprob
-        self.queue = []
-        self.atoms = 0
+    def __init__(self, rows: int, addprob: float, transitprob: float, mergeprob: float, current_mode: int = 0):
+        self._rows = rows
+        self._columns = RESIZE
+        self._place = [[-1] * self._columns for _ in range(self._rows)]
+        self._clusters = {}
+        self._current_mode = current_mode
+        self._create_atom = addprob
+        self._transit_atom = transitprob
+        self._merge_cluster = mergeprob
+        self._atoms_count = 0
 
     def resize(self) -> None:
-        for item in self.place:
-            item += [-1] * RESIZE
-        self.columns += RESIZE
+        """
+        Расширяет сетку в одной размерности на величину константы RESIZE.
+
+        :return: None
+        """
+        for row in self._place:
+            row += [-1] * RESIZE
+        self._columns += RESIZE
 
     def add_atom(self, row: int) -> Cell:
-        j = self.place[row].index(-1) if -1 in self.place[row] else self.columns
-        if j >= self.columns:
+        """
+        Добавляет в данную строку атом. Если данная строка заполнена - производит расширение сетки.
+
+        :param row: int
+        :return: Cell
+        """
+        j = self._place[row].index(-1) if -1 in self._place[row] else self._columns
+        if j >= self._columns:
             self.resize()
-            j += RESIZE
-        self.place[row][j] = 0
+        self._place[row][j] = 0
 
         return Cell(row, j)
 
-    def check_cluster(self, current: Cell, candidates: list, temp_place: list) -> None:
-        x = current.x
-        y = current.y
-        cur_val = self.place[x][y] if 0 <= x < self.rows and 0 <= y < self.columns else -2
-        if x - 1 >= 0 and x + 1 < self.rows and y - 1 >= 0 and y + 1 < self.columns and \
-                self.place[x - 1][y] == cur_val and self.place[x + 1][y] == cur_val and \
-                self.place[x][y - 1] == cur_val and self.place[x][y + 1] == cur_val and \
-                self.place[x + 1][y + 1] == cur_val and self.place[x - 1][y + 1] == cur_val and \
-                self.place[x + 1][y - 1] == cur_val and self.place[x - 1][y - 1] == cur_val:
-            return
-        if 0 <= x < self.rows and 0 <= y < self.columns and self.place[x][y] != -1 and temp_place[x][y] != 1:
-            temp_place[x][y] = 1
-            candidates.append(Cell(x, y))
-
-            self.check_cluster(Cell(x - 1, y), candidates, temp_place)  # TODO: Возможно нужно все проверки перевести в эти вызовы и вызывать только подходящие ячейки, а не все
-            self.check_cluster(Cell(x + 1, y), candidates, temp_place)
-            self.check_cluster(Cell(x, y - 1), candidates, temp_place)
-            self.check_cluster(Cell(x, y + 1), candidates, temp_place)
-            self.check_cluster(Cell(x + 1, y + 1), candidates, temp_place)
-            self.check_cluster(Cell(x + 1, y - 1), candidates, temp_place)
-            self.check_cluster(Cell(x - 1, y + 1), candidates, temp_place)
-            self.check_cluster(Cell(x - 1, y - 1), candidates, temp_place)
-
-    def create_cluster(self, current: Cell) -> None:
-        temp_place = [[0] * self.columns for _ in range(self.rows)]
-        candidates = []
-        self.check_cluster(current, candidates, temp_place)
-
-        min_clusternumber = 0
-        for item in candidates:
-            if self.place[item.x][item.y] != 0:
-                if min_clusternumber == 0:
-                    min_clusternumber = self.place[item.x][item.y]
-                elif self.place[item.x][item.y] < min_clusternumber:
-                    min_clusternumber = self.place[item.x][item.y]
-
-        if min_clusternumber == 0:
-            if len(candidates) >= 4:
-                new_cluster = Cluster()
-                for item in candidates:
-                    new_cluster.add_atom(item)
-                self.clusters[new_cluster.number] = new_cluster
-                self.cluster_coloring(self.clusters.get(new_cluster.number))
-        else:
-            merging = set()
-            for item in candidates:
-                if self.place[item.x][item.y] == min_clusternumber:
-                    continue
-                elif self.place[item.x][item.y] != 0:
-                    merging.add(self.place[item.x][item.y])
-                else:
-                    new_found = -1
-                    if item.x - 1 >= 0 and self.place[item.x - 1][item.y] > 0:
-                        new_found = self.place[item.x - 1][item.y]
-
-                    if item.x + 1 < self.rows and self.place[item.x + 1][item.y] > 0:
-                        new_found = self.place[item.x + 1][item.y]
-
-                    if item.y - 1 >= 0 and self.place[item.x][item.y - 1] > 0:
-                        new_found = self.place[item.x][item.y - 1]
-
-                    if item.y + 1 < self.columns and self.place[item.x][item.y + 1] > 0:
-                        new_found = self.place[item.x][item.y + 1]
-
-                    if item.x - 1 >= 0 and item.y - 1 >= 0 and self.place[item.x - 1][item.y - 1] > 0:
-                        new_found = self.place[item.x - 1][item.y - 1]
-
-                    if item.x - 1 >= 0 and item.y + 1 < self.columns and self.place[item.x - 1][item.y + 1] > 0:
-                        new_found = self.place[item.x - 1][item.y + 1]
-
-                    if item.x + 1 < self.rows and item.y - 1 >= 0 and self.place[item.x + 1][item.y - 1] > 0:
-                        new_found = self.place[item.x + 1][item.y - 1]
-
-                    if item.x + 1 < self.rows and item.y + 1 < self.columns and self.place[item.x + 1][item.y + 1] > 0:
-                        new_found = self.place[item.x + 1][item.y + 1]
-
-                    if new_found != -1:
-                        self.clusters[new_found].add_atom(item)
-                        self.cluster_coloring(self.clusters.get(new_found))
-            if len(merging) > 0:
-                self.cluster_merger([i for i in merging] + [min_clusternumber])  # TODO: Сделать список слияния возвращаемым, чтобы использовать его вне метода, в управляющем методе
-
     def atom_transition(self, current: Cell) -> Cell:
+        """
+        Осуществляет переход атома в соседнюю ячейку на поверхности. Выбирает два пути: вверх или вниз вдоль
+        поверхности. Может переместить на свободную ячейку, либо поверх другого атома. В случае, если оба направления
+        заблокированы, возвращает входной параметр - т.е. не осуществляет перемещения.
+
+        :param current: Cell
+        :return: Cell
+        """
         rand = random.choice((True, False))
         is_up = True if rand else False
 
-        self.place[current.x][current.y] = -1
+        self._place[current.x][current.y] = -1
 
         if is_up and current.x - 1 >= 0:
             current = self.add_atom(current.x - 1)
-        elif not is_up and current.x + 1 < self.rows:
+        elif not is_up and current.x + 1 < self._rows:
             current = self.add_atom(current.x + 1)
 
         return current
 
+    def check_cluster(self, current: Cell, candidates: list, temp_place: list) -> None:
+        # TODO: в эту функцию можно добавить еще один параметр - значение ячейки, откуда был совершен запуск,
+        #  чтобы находить кластер;
+        #  идея в том, чтобы сделать эту функцию только для создания новых кластеров (или слияние с кластерами в округе)
+        x = current.x
+        y = current.y
+
+        temp_place[x][y] = 1
+
+        if self._place[x][y] == -1 or temp_place[x][y] == 1:
+            return
+
+        cur_val = self._place[x][y]
+
+        if x - 1 >= 0 and x + 1 < self._rows and y - 1 >= 0 and y + 1 < self._columns and \
+                self._place[x - 1][y] == cur_val and self._place[x + 1][y] == cur_val and \
+                self._place[x][y - 1] == cur_val and self._place[x][y + 1] == cur_val and \
+                self._place[x + 1][y + 1] == cur_val and self._place[x - 1][y + 1] == cur_val and \
+                self._place[x + 1][y - 1] == cur_val and self._place[x - 1][y - 1] == cur_val:
+            return
+
+        candidates.append(Cell(x, y))
+
+        if x - 1 >= 0:
+            self.check_cluster(Cell(x - 1, y), candidates, temp_place)
+
+        if x + 1 < self._rows:
+            self.check_cluster(Cell(x + 1, y), candidates, temp_place)
+
+        if y - 1 >= 0:
+            self.check_cluster(Cell(x, y - 1), candidates, temp_place)
+
+        if y + 1 < self._columns:
+            self.check_cluster(Cell(x, y + 1), candidates, temp_place)
+
+        if x - 1 >= 0 and y - 1 >= 0:
+            self.check_cluster(Cell(x - 1, y - 1), candidates, temp_place)
+
+        if x + 1 < self._rows and y - 1 >= 0:
+            self.check_cluster(Cell(x + 1, y - 1), candidates, temp_place)
+
+        if x - 1 >= 0 and y + 1 < self._columns:
+            self.check_cluster(Cell(x - 1, y + 1), candidates, temp_place)
+
+        if x + 1 < self._rows and y + 1 < self._columns:
+            self.check_cluster(Cell(x + 1, y + 1), candidates, temp_place)
+
+    def create_cluster(self, current: Cell) -> None:
+        temp_place = [[0] * self._columns for _ in range(self._rows)]
+        candidates = []
+        self.check_cluster(current, candidates, temp_place)
+
+        min_clusternumber = 0
+        for atom in candidates:
+            if self._place[atom.x][atom.y] != 0:
+                if min_clusternumber == 0:
+                    min_clusternumber = self._place[atom.x][atom.y]
+                else:
+                    min_clusternumber = min(min_clusternumber, self._place[atom.x][atom.y])
+
+        if min_clusternumber == 0:
+            if len(candidates) >= 4:
+                new_cluster = Cluster(limiter=self._rows)
+                for atom in candidates:
+                    new_cluster.add_atom(atom)
+                self._clusters[new_cluster.number] = new_cluster
+                self.cluster_coloring(self._clusters.get(new_cluster.number))
+        else:
+            merging = set()
+            for atom in candidates:
+                if self._place[atom.x][atom.y] == min_clusternumber:
+                    continue
+                elif self._place[atom.x][atom.y] != 0:
+                    merging.add(self._place[atom.x][atom.y])
+                else:
+                    new_found = -1
+                    if atom.x - 1 >= 0 and self._place[atom.x - 1][atom.y] > 0:
+                        new_found = self._place[atom.x - 1][atom.y]
+
+                    if atom.x + 1 < self._rows and self._place[atom.x + 1][atom.y] > 0:
+                        new_found = self._place[atom.x + 1][atom.y]
+
+                    if atom.y - 1 >= 0 and self._place[atom.x][atom.y - 1] > 0:
+                        new_found = self._place[atom.x][atom.y - 1]
+
+                    if atom.y + 1 < self._columns and self._place[atom.x][atom.y + 1] > 0:
+                        new_found = self._place[atom.x][atom.y + 1]
+
+                    if atom.x - 1 >= 0 and atom.y - 1 >= 0 and self._place[atom.x - 1][atom.y - 1] > 0:
+                        new_found = self._place[atom.x - 1][atom.y - 1]
+
+                    if atom.x - 1 >= 0 and atom.y + 1 < self._columns and self._place[atom.x - 1][atom.y + 1] > 0:
+                        new_found = self._place[atom.x - 1][atom.y + 1]
+
+                    if atom.x + 1 < self._rows and atom.y - 1 >= 0 and self._place[atom.x + 1][atom.y - 1] > 0:
+                        new_found = self._place[atom.x + 1][atom.y - 1]
+
+                    if atom.x + 1 < self._rows and atom.y + 1 < self._columns and self._place[atom.x + 1][atom.y + 1] > 0:
+                        new_found = self._place[atom.x + 1][atom.y + 1]
+
+                    if new_found != -1:
+                        self._clusters[new_found].add_atom(atom)
+                        self.cluster_coloring(self._clusters.get(new_found))
+            if len(merging) > 0:
+                self.cluster_merger([i for i in merging] + [min_clusternumber])  # TODO: Сделать список слияния возвращаемым, чтобы использовать его вне метода, в управляющем методе
+
     def check_cluster_for_clusters(self, found: int) -> None:
-        cluster_number = self.clusters[found].number
-        for i in range(self.clusters[found].size()):
-            x = self.clusters[found].Atoms()[i].x
-            y = self.clusters[found].Atoms()[i].y
-            if 0 <= x < self.rows and 0 <= y < self.columns:
-                if (x - 1 >= 0 and self.place[x - 1][y] != cluster_number and self.place[x - 1][y] != -1 or
-                        x + 1 < self.rows and self.place[x + 1][y] != cluster_number and self.place[x + 1][y] != -1 or
-                        y - 1 >= 0 and self.place[x][y - 1] != cluster_number and self.place[x][y - 1] != -1 or
-                        y + 1 < self.columns and self.place[x][y + 1] != cluster_number and self.place[x][y + 1] != -1 or
-                        x - 1 >= 0 and y - 1 >= 0 and self.place[x - 1][y - 1] != cluster_number and self.place[x - 1][
+        cluster_number = self._clusters[found].number
+        for i in range(self._clusters[found].size()):
+            x = self._clusters[found].Atoms()[i].x
+            y = self._clusters[found].Atoms()[i].y
+            if 0 <= x < self._rows and 0 <= y < self._columns:
+                if (x - 1 >= 0 and self._place[x - 1][y] != cluster_number and self._place[x - 1][y] != -1 or
+                        x + 1 < self._rows and self._place[x + 1][y] != cluster_number and self._place[x + 1][y] != -1 or
+                        y - 1 >= 0 and self._place[x][y - 1] != cluster_number and self._place[x][y - 1] != -1 or
+                        y + 1 < self._columns and self._place[x][y + 1] != cluster_number and self._place[x][y + 1] != -1 or
+                        x - 1 >= 0 and y - 1 >= 0 and self._place[x - 1][y - 1] != cluster_number and self._place[x - 1][
                             y - 1] != -1 or
-                        x - 1 >= 0 and y + 1 < self.columns and self.place[x - 1][y + 1] != cluster_number and
-                        self.place[x - 1][y + 1] != -1 or
-                        x + 1 < self.rows and y - 1 >= 0 and self.place[x + 1][y - 1] != cluster_number and
-                        self.place[x + 1][y - 1] != -1 or
-                        x + 1 < self.rows and y + 1 < self.columns and self.place[x + 1][y + 1] != cluster_number and
-                        self.place[x + 1][y + 1] != -1):
-                    self.create_cluster(self.clusters[found].Atoms()[i])
+                        x - 1 >= 0 and y + 1 < self._columns and self._place[x - 1][y + 1] != cluster_number and
+                        self._place[x - 1][y + 1] != -1 or
+                        x + 1 < self._rows and y - 1 >= 0 and self._place[x + 1][y - 1] != cluster_number and
+                        self._place[x + 1][y - 1] != -1 or
+                        x + 1 < self._rows and y + 1 < self._columns and self._place[x + 1][y + 1] != cluster_number and
+                        self._place[x + 1][y + 1] != -1):
+                    self.create_cluster(self._clusters[found].Atoms()[i])
                     return
 
     def cluster_uncoloring(self, cluster: Cluster) -> None:
         for item in cluster.Atoms():
-            if 0 <= item.x < self.rows and 0 <= item.y < self.columns:
-                self.place[item.x][item.y] = -1
+            if 0 <= item.x < self._rows and 0 <= item.y < self._columns:
+                self._place[item.x][item.y] = -1
 
     def cluster_coloring(self, cluster: Cluster) -> None:
         for item in cluster.Atoms():
-            if item.y >= self.columns:
+            if item.y >= self._columns:
                 self.resize()
-            if 0 <= item.x < self.rows and 0 <= item.y < self.columns:
-                self.place[item.x][item.y] = cluster.number
+            if 0 <= item.x < self._rows and 0 <= item.y < self._columns:
+                self._place[item.x][item.y] = cluster.number
 
     def cluster_merger(self, candidates: list) -> None:
         if len(candidates) > 2:
             for i in range(len(candidates) - 1):
-                self.clusters[candidates[-1]].merger(self.clusters[candidates[i]])
-                self.clusters[candidates[i]].NotIsMerged()
-                self.cluster_uncoloring(self.clusters[candidates[i]])
-            self.cluster_coloring(self.clusters.get(candidates[-1]))
+                self._clusters[candidates[-1]].merger(self._clusters[candidates[i]])
+                self._clusters[candidates[i]].NotIsMerged()
+                self.cluster_uncoloring(self._clusters[candidates[i]])
+            self.cluster_coloring(self._clusters.get(candidates[-1]))
         else:
             randmerge = random.random()
-            if randmerge <= self.mergeCluster or self.clusters[candidates[0]].IsOnTheSurface() or \
-                    self.clusters[candidates[1]].IsOnTheSurface() or True:                                         # TODO: временное решение
-                self.clusters[candidates[1]].merger(self.clusters[candidates[0]])                                  # TODO: подумать над этой проблемой (сделать доп. проверку на повторяющиеся ячейки в merger ?)
-                self.cluster_uncoloring(self.clusters[candidates[0]])
-                self.cluster_coloring(self.clusters[candidates[1]])
-                self.clusters[candidates[0]].NotIsMerged()
+            if randmerge <= self._merge_cluster or self._clusters[candidates[0]].IsOnTheSurface() or \
+                    self._clusters[candidates[1]].IsOnTheSurface() or True:                                         # TODO: временное решение
+                self._clusters[candidates[1]].merger(self._clusters[candidates[0]])                                  # TODO: подумать над этой проблемой (сделать доп. проверку на повторяющиеся ячейки в merger ?)
+                self.cluster_uncoloring(self._clusters[candidates[0]])
+                self.cluster_coloring(self._clusters[candidates[1]])
+                self._clusters[candidates[0]].NotIsMerged()
             else:
-                if self.clusters[candidates[0]].size() >= self.clusters[candidates[1]].size():
+                if self._clusters[candidates[0]].size() >= self._clusters[candidates[1]].size():
                     repulsion_index = candidates[1]
                     stay_index = candidates[0]
                 else:
                     repulsion_index = candidates[0]
                     stay_index = candidates[1]
 
-                if self.clusters[repulsion_index].border_left().x >= self.clusters[stay_index].border_right().x:
-                    if self.clusters[repulsion_index].is_up():                                                    # TODO: тут скорее всего ошибка, нужно переработать всю механику
-                        self.clusters[repulsion_index].change_way()
+                if self._clusters[repulsion_index].border_left().x >= self._clusters[stay_index].border_right().x:
+                    if self._clusters[repulsion_index].is_up():                                                    # TODO: тут скорее всего ошибка, нужно переработать всю механику
+                        self._clusters[repulsion_index].change_way()
                 else:
-                    if not self.clusters[repulsion_index].is_up():
-                        self.clusters[repulsion_index].change_way()
+                    if not self._clusters[repulsion_index].is_up():
+                        self._clusters[repulsion_index].change_way()
 
-                self.cluster_uncoloring(self.clusters.get(repulsion_index))
-                self.clusters[repulsion_index].transition(1, self.rows)
-                self.cluster_coloring(self.clusters.get(repulsion_index))
+                self.cluster_uncoloring(self._clusters.get(repulsion_index))
+                self._clusters[repulsion_index].transition(1, self._rows)
+                self.cluster_coloring(self._clusters.get(repulsion_index))
 
-    def queue_transit(self) -> None:
-        i = 0
-        while i < len(self.queue):
-            cluster_number = self.queue[i].x
-            if cluster_number == -1 or self.clusters[cluster_number].IsDeleted() or self.clusters[cluster_number].IsMerged():
-                del self.queue[i]
+    def queue_transit(self):
+        for cluster in self._clusters:
+            if cluster.status == Status.ON_SURFACE or cluster.status == Status.OFF_SURFACE:
                 continue
-            else:
-                if self.queue[i].y > 0:
-                    self.queue[i].y -= 1
-                    self.check_cluster_for_clusters(cluster_number)
-                    if self.clusters[cluster_number].IsMerged():
-                        del self.queue[i]
-                        continue
-                    self.cluster_uncoloring(self.clusters.get(cluster_number))
-                    self.clusters[cluster_number].separation(1)
-                    self.cluster_coloring(self.clusters.get(cluster_number))
-                else:
-                    rand = random.randint(0, self.clusters[cluster_number].size() - 1)
-                    V = self.clusters[cluster_number].size() if 1 + rand > self.clusters[cluster_number].size() else 1 + rand
-                    if V >= self.rows:
-                        V = self.rows - 1
-                    _exit = False
 
-                    j = V
-                    while j > 0 and not _exit:
-                        self.check_cluster_for_clusters(cluster_number)
-                        if self.clusters[cluster_number].IsMerged() or self.clusters[cluster_number].IsOnTheSurface():
-                            del self.queue[i]
-                            _exit = True
-                            continue
-                        self.cluster_uncoloring(self.clusters.get(cluster_number))
-                        self.clusters[cluster_number].transition(1, self.rows)
-                        self.cluster_coloring(self.clusters.get(cluster_number))
-                        j -= 1
-            i += 1
+            if cluster.status == Status.DOWN_ALONG_SURFACE or cluster.status == Status.UP_ALONG_SURFACE:
+                speed = cluster.speed()
+                if speed >= self._rows:
+                    speed -= 1
+                _exit = False
+
+                j = speed
+                while j > 0 and not _exit:
+                    self.check_cluster_for_clusters(cluster.number)
+                    if cluster.status == Status.MERGING or cluster.status == Status.ON_SURFACE:
+                        _exit = True
+                        continue
+                    self.cluster_uncoloring(self._clusters.get(cluster.number))
+                    cluster.transition(1)
+                    self.cluster_coloring(self._clusters.get(cluster.number))
+                    j -= 1
+
+            if cluster.status == Status.BREAKING_AWAY:
+                if cluster.can_separating():
+                    self.check_cluster_for_clusters(cluster.number)
+                    if cluster.status == Status.MERGING or cluster.status == Status.ON_SURFACE:
+                        continue
+                    self.cluster_uncoloring(self._clusters.get(cluster.number))
+                    cluster.separation(1)
+                    self.cluster_coloring(self._clusters.get(cluster.number))
 
     def run(self) -> None:
-        create_atom_prob = self.createAtom
-        if self.mode == 1:
+        create_atom_prob = self._create_atom
+        if self._current_mode == 1:
             create_atom_prob = random.random()
 
         rand_create = random.random()
         if rand_create <= create_atom_prob:
-            self.atoms += 1
-            position = random.randint(0, self.rows - 1)
+            self._atoms_count += 1
+            position = random.randint(0, self._rows - 1)
             current = self.add_atom(position)
             self.create_cluster(current)
-            if self.place[current.x][current.y] == 0:
+            if self._place[current.x][current.y] == 0:
                 rand_transition = random.random()
-                if rand_transition <= self.transitAtom:
+                if rand_transition <= self._transit_atom:
                     current = self.atom_transition(current)                                                     # TODO: можно изменить логику, проверять наличие кластера только для кластеров при отсоединении
-                    self.create_cluster(current)                                                                # а атомы присоединять сразу
-            if self.place[current.x][current.y] > 0:
+                    self.create_cluster(current)                                                                #  а атомы присоединять сразу
+            if self._place[current.x][current.y] > 0:
                 rand_separation = random.random()
-                cluster_number = self.place[current.x][current.y]
-                separation_prob = 1.0 - self.clusters[cluster_number].adjoined / self.clusters[cluster_number].size()
+                cluster_number = self._place[current.x][current.y]
+                separation_prob = 1.0 - self._clusters[cluster_number].adjoined / self._clusters[cluster_number].size()
                 if rand_separation < separation_prob:
-                    sep = self.clusters[cluster_number].size() / 2 if self.clusters[cluster_number].size() / 2 < self.rows else self.rows - 1
-                    new_separation = Cell(self.place[current.x][current.y], sep if sep >= 1 else 1)         # TODO: убрать Cell отсюда и добавить читаемые статусы
-                    self.queue.append(new_separation)
-            if len(self.queue) != 0:
-                self.queue_transit()
+                    self._clusters.get(self._place[current.x][current.y]).status = Status.BREAKING_AWAY
+            self.queue_transit()  # TODO: добавить проверку на необходимость запуска, как вариант сделать счетчики на каждый тип кластера запускать queue только, когда это требуется
 
     def draw(self, dr: Drawer) -> None:
-        for i in range(self.rows):
-            for j in range(self.columns):
-                if self.place[i][j] != -1:
-                    dr.draw_point(i, j, self.place[i][j])
+        for row in range(self._rows):
+            for col in range(self._columns):
+                if self._place[row][col] != -1:
+                    dr.draw_point(row, col, self._place[row][col])
 
     def create_bar(self) -> dict:
-        d = {}
-        for value in self.clusters.values():
-            d[value.size()] = d.get(value.size()) + 1 if d.get(value.size()) else 1
-        return d
+        bar = {}
+        for cluster in self._clusters.values():
+            bar[cluster.size()] = bar.get(cluster.size()) + 1 if bar.get(cluster.size()) else 1
+        return bar
 
     def conclusion_dict(self) -> dict:
-        lengths = [i.size() for i in self.clusters.values()] if len(self.clusters) > 0 else [0]
+        sizes = [cluster.size() for cluster in self._clusters.values()] if len(self._clusters) > 0 else [0]
 
-        avg = statistics.mean(lengths)
-        med = statistics.median(lengths)
-        span = lengths[-1] - lengths[0]
+        avg = statistics.mean(sizes)
+        med = statistics.median(sizes)
+        span = sizes[-1] - sizes[0]
 
         return {
-            'atoms': self.atoms,
+            'atoms': self._atoms_count,
             'avg': avg,
             'med': med,
             'span': span,
-            'clusters_count': len(self.clusters)
-        }
+            'clusters_count': len(self._clusters)
+        }  # TODO: сделать валидируюший класс?
 
     def clusters_conclusion(self, _time: str = None) -> None:
-        for value in self.clusters.values():
-            if value.IsMerged():
+        for cluster in self._clusters.values():
+            if cluster.status == Status.MERGING:
                 continue
 
-            clusterinfo = f'Номер кластера: {value.number()}\nРазмер кластера (количество атомов): {value.size()}\n' \
-                          f'Крайние точки кластера: по вертикали: {value.border_right().x}, {value.border_left().x}; ' \
-                          f'по горизонтали: {value.border_right().y}, {value.border_left().y}\nСтатус:'
-            if value.IsOnTheSurface():
-                clusterinfo += 'На поверхности\n\n'
-            elif not value.IsDeleted():
-                clusterinfo += 'Вне поверхности, в пределах области видимости\n\n'
-            else:
-                clusterinfo += 'Вне пределов области видимости\n\n'
+            cluster_info = f'Номер кластера: {cluster.number}\n' \
+                           f'Размер кластера: {cluster.size()}\n' \
+                           f'Границы кластера: ' \
+                           f'по вертикали: {cluster.border_right().x}, {cluster.border_left().x}; ' \
+                           f'по горизонтали: {cluster.border_right().y}, {cluster.border_left().y}\n' \
+                           f'Статус: {status_definition.get(cluster.status)}\n\n' \
+                           f'Изображение кластера:\n\n'
+            cluster_info += cluster.image()
 
-            clusterinfo += 'Отрисовка кластера:\n\n'
-            for i in range(value.border_right().x - value.border_left().x + 1):
-                for j in range(value.border_right().y - value.border_left().y + 1):
-                    for k in range(value.size()):
-                        if value.Atoms()[k].x - value.border_left().x == i and \
-                                value.Atoms()[k].y - value.border_left().y == j:
-                            clusterinfo += '*'
-                            break
-                        if k == value.size() - 1:
-                            clusterinfo += ' '
-                clusterinfo += '\n'
-                path = f'results\\ClusterN-{value.number}-{_time}.txt'
-                with open(path, 'w') as file:
-                    file.write(clusterinfo)
+            path = f'results\\ClusterN-{cluster.number}-{_time}.txt'
+            with open(path, 'w') as file:
+                file.write(cluster_info)
