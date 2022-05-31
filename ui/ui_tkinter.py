@@ -1,6 +1,6 @@
 import datetime
 from resources.utilities import run_time
-from resources.constants import CONST, VAR, DEFAULT, DOWNHILL, TPE
+from resources.constants import Modes, DEFAULT, DOWNHILL, TPE
 
 from classes import Board
 from interfaces.drawer import Drawer
@@ -54,7 +54,7 @@ class ChemicalApp(Drawer):  # (tk)
         self.label_height = tk.Label(self.sidebar, text="Размер поверхности")
         self.textbox_height = tk.Entry(self.sidebar, validate="key", validatecommand=self.vcmd)
         self.label_mode = tk.Label(self.sidebar, text="Режим моделирования")
-        self.combobox_mode = ttk.Combobox(self.sidebar, values=[CONST, VAR])
+        self.combobox_mode = ttk.Combobox(self.sidebar, values=[Modes.CONST.value, Modes.VAR.value])
         self.combobox_mode.bind("<<ComboboxSelected>>", self.change_label_create)
         self.label_create = tk.Label(self.sidebar, text="Вероятность появления")
         self.textbox_create = tk.Entry(self.sidebar, validate="key", validatecommand=self.vcmd)
@@ -108,7 +108,7 @@ class ChemicalApp(Drawer):  # (tk)
             else:
                 self.is_exit = False
                 self.textbox_height.insert(0, text[0].replace('\n', ''))
-                self.combobox_mode.insert(0, VAR if text[1].replace('\n', '') == '1' else CONST)
+                self.combobox_mode.insert(0, Modes.VAR.value if text[1].replace('\n', '') == '1' else Modes.CONST.value)
                 self.textbox_create.insert(0, text[2].replace('\n', ''))
                 self.textbox_ts.insert(0, text[3].replace('\n', ''))
                 self.textbox_margin.insert(0, text[4].replace('\n', ''))
@@ -150,7 +150,7 @@ class ChemicalApp(Drawer):  # (tk)
             return
         self.is_exit = False
         self.N = int(self.textbox_height.get())
-        self.mode = 1 if self.combobox_mode.get() == VAR else 0
+        self.mode = 1 if self.combobox_mode.get() == Modes.VAR.value else 0
         self.b = float(self.textbox_create.get())
         self.ts = float(self.textbox_ts.get())
         self.u = float(self.textbox_margin.get())
@@ -326,7 +326,7 @@ class ChemicalApp(Drawer):  # (tk)
         self.canvas.delete("all")
 
     def change_label_create(self, _) -> None:
-        if self.combobox_mode.get() == CONST:
+        if self.combobox_mode.get() == Modes.CONST.value:
             self.label_create.config(text="Вероятность появления")
         else:
             self.label_create.config(text="Правая граница вероятности")

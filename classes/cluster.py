@@ -51,12 +51,20 @@ class Cluster:
         return self.size()
 
     @property
+    def atoms(self) -> list:
+        return list(self._atoms)  # TODO: временное решение, лучше убрать в интерфейс
+
+    @property
     def number(self) -> int:
         return self._number
 
     @property
     def status(self) -> Status:
         return self._status
+
+    @status.setter
+    def status(self, new_status: Status):
+        self._status = new_status
 
     def define_rect_border(self) -> None:
         self._adjoined = sum([1 if i.y == 0 else 0 for i in self._atoms])

@@ -1,15 +1,16 @@
 from enum import Enum
 
-# Modes
-CONST = "Постояннотоковый"
-VAR = "Переменнотоковый"
-
 # Algorithms
 DEFAULT = "Обычный запуск"
 DOWNHILL = "Покоординатный спуск"
 TPE = "TPE"
 
 RESIZE = 3
+
+
+class Modes(Enum):
+    CONST = "Постояннотоковый"
+    VAR = "Переменнотоковый"
 
 
 class Status(Enum):
