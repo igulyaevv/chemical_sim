@@ -13,7 +13,7 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 
-class ChemicalApp(Drawer):  # (tk)
+class ChemicalAppUI(Drawer):  # (tk)
     def __init__(self) -> None:
         self.N = 0
         self.mode = 0

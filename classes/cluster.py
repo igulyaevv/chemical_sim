@@ -79,10 +79,10 @@ class Cluster:
         if self.border_right().x < 0 or self.border_left().x >= self.limiter:
             self._status = Status.OFF_SURFACE
 
-        self.separation_limit = self.size() / 2 if self.size() / 2 < self.limiter else self.limiter - 1
+        self.separation_limit = (self.size() / 2) if self.size() / 2 < self.limiter else self.limiter - 1
 
     def can_separating(self) -> bool:
-        if self.border_right().x >= self.separation_limit:
+        if self.border_right().y >= self.separation_limit:
             return False
         return True
 
