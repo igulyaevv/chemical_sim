@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 
+
 hist1 = {
     2000: 0.00,
     1674: 0.00,

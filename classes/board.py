@@ -7,7 +7,7 @@ import statistics
 from interfaces.drawer import Drawer
 from interfaces.drawable import Drawable
 
-from resources.constants import RESIZE, Status, status_definition, Modes
+from resources.constants import RESIZE, Status, Modes
 
 random.seed()
 
@@ -211,6 +211,8 @@ class Board(Drawable):
             if 0 <= item.x < self._rows and 0 <= item.y < self._columns:
                 self._place[item.x][item.y] = -1
 
+        cluster.is_colored = False
+
     def cluster_coloring(self, cluster: Cluster) -> None:
         """Отрисовывает атомы кластера на сетку"""
 
@@ -219,6 +221,8 @@ class Board(Drawable):
                 self.resize()
             if 0 <= item.x < self._rows and 0 <= item.y < self._columns:
                 self._place[item.x][item.y] = cluster.number
+
+        cluster.is_colored = True
 
     def cluster_merger(self, candidates: list) -> None:
         """Процедура слияние кластеров. Если кластеров > 2, тогда все кластеры сливаются в один, в противном случае
@@ -240,6 +244,7 @@ class Board(Drawable):
                 self.cluster_coloring(self._clusters[candidates[1]])
                 self._clusters[candidates[0]].status = Status.MERGING
             else:
+                # TODO: здесь есть баг, что он может каким-то образом находясь на поверхности дернутся на одну ячейку вверх
                 if self._clusters[candidates[0]].size() >= self._clusters[candidates[1]].size():
                     repulsion_index = candidates[1]
                     stay_index = candidates[0]
@@ -263,7 +268,10 @@ class Board(Drawable):
         с поверхности, передвигает кластеры со статусами UP_ALONG_SURFACE, DOWN_ALONG_SURFACE вдоль поверхности"""
 
         for cluster in self._clusters.values():
-            if cluster.status == Status.ON_SURFACE or cluster.status == Status.OFF_SURFACE:
+            if cluster.status == Status.OFF_SURFACE and cluster.is_colored:
+                cluster.is_colored = not cluster.is_colored
+                self.cluster_uncoloring(cluster)
+            if cluster.status in (Status.MERGING, Status.ON_SURFACE, Status.OFF_SURFACE):
                 continue
 
             if cluster.status == Status.DOWN_ALONG_SURFACE or cluster.status == Status.UP_ALONG_SURFACE:
@@ -275,7 +283,7 @@ class Board(Drawable):
                 j = speed
                 while j > 0 and not _exit:
                     self.check_cluster_for_clusters(cluster.number)
-                    if cluster.status == Status.MERGING or cluster.status == Status.ON_SURFACE:
+                    if cluster.status in (Status.MERGING, Status.ON_SURFACE, Status.OFF_SURFACE):
                         _exit = True
                         continue
                     self.cluster_uncoloring(self._clusters.get(cluster.number))
@@ -286,7 +294,7 @@ class Board(Drawable):
             if cluster.status == Status.BREAKING_AWAY:
                 if cluster.can_separating():
                     self.check_cluster_for_clusters(cluster.number)
-                    if cluster.status == Status.MERGING or cluster.status == Status.ON_SURFACE:
+                    if cluster.status in (Status.MERGING, Status.ON_SURFACE, Status.OFF_SURFACE):
                         continue
                     self.cluster_uncoloring(self._clusters.get(cluster.number))
                     cluster.separation()
@@ -365,7 +373,7 @@ class Board(Drawable):
                            f'Границы кластера: ' \
                            f'по вертикали: {cluster.border_right().x}, {cluster.border_left().x}; ' \
                            f'по горизонтали: {cluster.border_right().y}, {cluster.border_left().y}\n' \
-                           f'Статус: {status_definition.get(cluster.status)}\n\n' \
+                           f'Статус: {cluster.status.value}\n\n' \
                            f'Изображение кластера:\n\n'
             cluster_info += cluster.image()
 

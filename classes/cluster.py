@@ -15,6 +15,7 @@ class Cluster:
         self.max = Cell()
         self.separation_limit = 0
         self.limiter = limiter
+        self.is_colored = False  # TODO: возможно стоит этот параметр убрать в Board
 
     def add_atom(self, atom: Cell) -> None:
         self._atoms.append(atom)
@@ -25,21 +26,21 @@ class Cluster:
         self.min.y = min(atom.y, self.min.y)
 
     def separation(self) -> None:
-        self._status = Status.BREAKING_AWAY
         for j in range(self.size()):
             self._atoms[j].y += 1
-        self.define_rect_border()
+        self._status = Status.BREAKING_AWAY
+        self._define_rect_border()
 
     def transition(self):
         for j in range(self.size()):
             self._atoms[j].x += 1 if self._status == Status.DOWN_ALONG_SURFACE else -1
-        self.define_rect_border()
+        self._define_rect_border()
 
     def merger(self, cluster) -> None:
         for atom in cluster._atoms:
             self.add_atom(atom)
 
-        self.define_rect_border()
+        self._define_rect_border()
 
         if cluster.status == Status.BREAKING_AWAY:
             self._status = Status.BREAKING_AWAY
@@ -66,12 +67,14 @@ class Cluster:
     def status(self, new_status: Status):
         self._status = new_status
 
-    def define_rect_border(self) -> None:
+    def _define_rect_border(self) -> None:
         self._adjoined = sum([1 if i.y == 0 else 0 for i in self._atoms])
-        self.max.x = max([i.x for i in self._atoms])
-        self.max.y = max([i.y for i in self._atoms])
-        self.min.x = min([i.x for i in self._atoms])
-        self.min.y = min([i.y for i in self._atoms])
+        x = [i.x for i in self._atoms]
+        y = [i.y for i in self._atoms]
+        self.max.x = max(x)
+        self.max.y = max(y)
+        self.min.x = min(x)
+        self.min.y = min(y)
 
         if self.border_left().y == 0 and self.status != Status.BREAKING_AWAY:
             self._status = Status.ON_SURFACE
