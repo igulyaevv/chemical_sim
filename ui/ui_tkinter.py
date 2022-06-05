@@ -1,8 +1,12 @@
 import datetime
-from resources.utilities import run_time
-from resources.constants import Modes, DEFAULT, DOWNHILL, TPE
 
-from classes import Board
+from classes.coordinate_descent import CoordinateDescent
+from classes.default_runner import DefaultRunner
+from classes.tpe import TPE
+from resources.utilities import run_time
+from resources.constants import Mode, Algorithm, UISize
+from interfaces.sleeper import Sleeper
+
 from interfaces.drawer import Drawer
 
 import tkinter as tk
@@ -13,7 +17,7 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 
-class ChemicalAppUI(Drawer):  # (tk)
+class ChemicalAppUI(Drawer, Sleeper):  # (tk)
     def __init__(self) -> None:
         self.N = 0
         self.mode = 0
@@ -22,39 +26,57 @@ class ChemicalAppUI(Drawer):  # (tk)
         self.u = 0.0
         self.G = 0
         self.current_G = 0
-        self.eps = None
-        self.current_eps = None
+
+        self.theory = None
+
+        self.opti_count = 0
 
         self._time = None
 
-        self.WIN_W = 1280
-        self.WIN_H = 720
-        self.SIDEBAR_W = 200
-        self.SIDEBAR_H = self.WIN_H
-        self.GRAPHBAR_W = 400
-        self.GRAPHBAR_H = self.WIN_H / 2
-        self.STATBAR_W = 400
-        self.STATBAR_H = self.WIN_H / 2
-        self.CANVAS_W = self.WIN_W - self.SIDEBAR_W - self.GRAPHBAR_W
-        self.CANVAS_H = self.WIN_H
-
         self.window = tk.Tk()
-        self.sidebar = tk.Frame(self.window, width=self.SIDEBAR_W, height=self.SIDEBAR_H, bd=4, relief=tk.GROOVE)
-        self.graphbar = tk.Frame(self.window, width=self.GRAPHBAR_W, height=self.GRAPHBAR_H, bd=4, relief=tk.GROOVE)
-        self.statbar = tk.Frame(self.window, width=self.STATBAR_W, height=self.STATBAR_H, bd=4, relief=tk.GROOVE)
-        self.canvas = tk.Canvas(self.window, width=self.CANVAS_W, height=self.CANVAS_H, bg="#012")
+        self.sidebar = tk.Frame(
+            self.window,
+            width=UISize.SIDEBAR_W.value,
+            height=UISize.SIDEBAR_H.value,
+            bd=4,
+            relief=tk.GROOVE
+        )
+        self.graphbar = tk.Frame(
+            self.window,
+            width=UISize.GRAPHBAR_W.value,
+            height=UISize.GRAPHBAR_H.value,
+            bd=4,
+            relief=tk.GROOVE
+        )
+        self.statbar = tk.Frame(
+            self.window,
+            width=UISize.STATBAR_W.value,
+            height=UISize.STATBAR_H.value,
+            bd=4,
+            relief=tk.GROOVE
+        )
+        self.canvas = tk.Canvas(
+            self.window,
+            width=UISize.CANVAS_W.value,
+            height=UISize.CANVAS_H.value,
+            bg="#012",
+            relief=tk.GROOVE
+        )
 
         self.vcmd = (self.window.register(self.validate), "%P")
 
         self.graph = None
 
         self.label_modelling = tk.Label(self.sidebar, text="Режим работы")
-        self.combobox_algo = ttk.Combobox(self.sidebar, values=[DEFAULT, DOWNHILL, TPE])
-        self.combobox_algo.bind("<<ComboboxSelected>>", self.change_eps_visible)
+        self.combobox_algo = ttk.Combobox(
+            self.sidebar,
+            values=[Algorithm.DEFAULT.value, Algorithm.DOWNHILL.value, Algorithm.TPE.value]
+        )
+        self.combobox_algo.bind("<<ComboboxSelected>>", self.change_opti_visible)
         self.label_height = tk.Label(self.sidebar, text="Размер поверхности")
         self.textbox_height = tk.Entry(self.sidebar, validate="key", validatecommand=self.vcmd)
         self.label_mode = tk.Label(self.sidebar, text="Режим моделирования")
-        self.combobox_mode = ttk.Combobox(self.sidebar, values=[Modes.CONST.value, Modes.VAR.value])
+        self.combobox_mode = ttk.Combobox(self.sidebar, values=[Mode.CONST.value, Mode.VAR.value])
         self.combobox_mode.bind("<<ComboboxSelected>>", self.change_label_create)
         self.label_create = tk.Label(self.sidebar, text="Вероятность появления")
         self.textbox_create = tk.Entry(self.sidebar, validate="key", validatecommand=self.vcmd)
@@ -64,13 +86,13 @@ class ChemicalAppUI(Drawer):  # (tk)
         self.textbox_margin = tk.Entry(self.sidebar, validate="key", validatecommand=self.vcmd)
         self.label_count = tk.Label(self.sidebar, text="Количество итераций")
         self.textbox_count = tk.Entry(self.sidebar, validate="key", validatecommand=self.vcmd)
-        self.label_eps = tk.Label(self.sidebar, text="Задайте точность")
-        self.textbox_eps = tk.Entry(self.sidebar, validate="key", validatecommand=self.vcmd)
-        self.textbox_eps["state"] = "disabled"
+        self.label_eps = tk.Label(self.sidebar, text="Количество оптимизаций")
+        self.textbox_opti = tk.Entry(self.sidebar, validate="key", validatecommand=self.vcmd)
+        self.textbox_opti["state"] = "disabled"
 
         self.btb_run = tk.Button(self.sidebar, text="Run", command=self.run_btn)
-        self.check_run = tk.BooleanVar()
-        self.cb_run = tk.Checkbutton(self.sidebar, text="No UI", variable=self.check_run)
+        self.no_ui = tk.BooleanVar()
+        self.cb_run = tk.Checkbutton(self.sidebar, text="No UI", variable=self.no_ui)
         self.btn_pause = tk.Button(self.sidebar, text="Pause", command=self.pause_btn)
         self.btn_restart = tk.Button(self.sidebar, text="Rerun", command=self.restart_btn)
         self.btn_pause["state"] = "disabled"
@@ -89,7 +111,7 @@ class ChemicalAppUI(Drawer):  # (tk)
         self.stat_avg_weight = tk.Label(self.statbar)
         self.stat_span_weight = tk.Label(self.statbar)
 
-        self.board = None
+        self._method = None
         self.is_exit = False
 
     def open_configfile(self) -> None:
@@ -107,8 +129,9 @@ class ChemicalAppUI(Drawer):  # (tk)
                 return
             else:
                 self.is_exit = False
+                self.fields_clearing()
                 self.textbox_height.insert(0, text[0].replace('\n', ''))
-                self.combobox_mode.insert(0, Modes.VAR.value if text[1].replace('\n', '') == '1' else Modes.CONST.value)
+                self.combobox_mode.insert(0, Mode.VAR.value if text[1].replace('\n', '') == '1' else Mode.CONST.value)
                 self.textbox_create.insert(0, text[2].replace('\n', ''))
                 self.textbox_ts.insert(0, text[3].replace('\n', ''))
                 self.textbox_margin.insert(0, text[4].replace('\n', ''))
@@ -130,7 +153,8 @@ class ChemicalAppUI(Drawer):  # (tk)
                 output_file.write(str(item) + '\n')
         self.window.title(f"Chemical Simulator - {filepath}")
 
-    def validate(self, new_value) -> bool:
+    @staticmethod
+    def validate(new_value) -> bool:
         try:
             if new_value == '' or new_value == '-' or new_value == '+':
                 return True
@@ -142,7 +166,7 @@ class ChemicalAppUI(Drawer):  # (tk)
     def set_params(self) -> None:
         if self.textbox_height.get() == '' or self.combobox_mode.get() == '' or self.textbox_create.get() == '' \
                 or self.textbox_ts.get() == '' or self.textbox_margin.get() == '' or self.textbox_count.get() == ''\
-                or (self.combobox_algo.get() == DOWNHILL and self.textbox_eps.get() == '')\
+                or (self.combobox_algo.get() == Algorithm.DOWNHILL.value and self.textbox_opti.get() == '')\
                 or self.combobox_algo.get() == '':
             messagebox.showinfo("Warning", "Не выбран режим работы!") if self.combobox_algo.get() == ''\
                 else messagebox.showinfo("Warning", "Заполнены не все поля")
@@ -150,7 +174,7 @@ class ChemicalAppUI(Drawer):  # (tk)
             return
         self.is_exit = False
         self.N = int(self.textbox_height.get())
-        self.mode = 1 if self.combobox_mode.get() == Modes.VAR.value else 0
+        self.mode = 1 if self.combobox_mode.get() == Mode.VAR.value else 0
         self.b = float(self.textbox_create.get())
         self.ts = float(self.textbox_ts.get())
         self.u = float(self.textbox_margin.get())
@@ -158,18 +182,18 @@ class ChemicalAppUI(Drawer):  # (tk)
         if self.G == 0 or self.G is None:
             self.G = self.current_G
 
-        self.eps = float(self.textbox_eps.get()) if self.combobox_algo.get() == DOWNHILL else None
-        if self.eps is not None and self.current_eps is None:
-            self.current_eps = self.eps + 1
+        self.opti_count = int(self.textbox_opti.get()) if self.combobox_algo.get() in [
+            Algorithm.DOWNHILL.value, Algorithm.TPE.value
+        ] else 1
 
     def configurate(self) -> None:
-        self.window.config(width=self.WIN_W, height=self.WIN_H)
+        self.window.config(width=UISize.WIN_W.value, height=UISize.WIN_H.value)
         self.window.resizable(False, False)
         self.window.title("Chemical Simulator")
         self.sidebar.place(x=0, y=0)
-        self.graphbar.place(x=self.SIDEBAR_W, y=0)
-        self.statbar.place(x=self.SIDEBAR_W, y=self.STATBAR_H)
-        self.canvas.place(x=self.SIDEBAR_W + self.GRAPHBAR_W, y=0)
+        self.graphbar.place(x=UISize.SIDEBAR_W.value, y=0)
+        self.statbar.place(x=UISize.SIDEBAR_W.value, y=UISize.STATBAR_H.value)
+        self.canvas.place(x=UISize.SIDEBAR_W.value + UISize.GRAPHBAR_W.value, y=0)
 
         self.label_modelling.place(x=12, y=0)
         self.combobox_algo.place(x=12, y=25)
@@ -187,13 +211,17 @@ class ChemicalAppUI(Drawer):  # (tk)
         self.label_count.place(x=10, y=300)
         self.textbox_count.place(x=12, y=325)
         self.label_eps.place(x=12, y=350)
-        self.textbox_eps.place(x=12, y=375)
+        self.textbox_opti.place(x=12, y=375)
 
-        self.btb_run.place(x=12, y=425, width=int(self.SIDEBAR_W / 3))
-        self.cb_run.place(x=int(self.SIDEBAR_W / 3) + 20, y=425, width=int(self.SIDEBAR_W / 3))
-        self.btn_pause.place(x=12, y=450, width=int(self.SIDEBAR_W / 3))
-        self.btn_restart.place(x=12, y=475, width=int(self.SIDEBAR_W / 3))
-        self.btn_result.place(x=self.SIDEBAR_W - 20 - int(self.SIDEBAR_W / 3), y=450, width=int(self.SIDEBAR_W / 3))
+        self.btb_run.place(x=12, y=425, width=int(UISize.SIDEBAR_W.value / 3))
+        self.cb_run.place(x=int(UISize.SIDEBAR_W.value / 3) + 20, y=425, width=int(UISize.SIDEBAR_W.value / 3))
+        self.btn_pause.place(x=12, y=450, width=int(UISize.SIDEBAR_W.value / 3))
+        self.btn_restart.place(x=12, y=475, width=int(UISize.SIDEBAR_W.value / 3))
+        self.btn_result.place(
+            x=UISize.SIDEBAR_W.value - 20 - int(UISize.SIDEBAR_W.value / 3),
+            y=450,
+            width=int(UISize.SIDEBAR_W.value / 3)
+        )
         self.btn_openconfig.place(x=12, y=525)
         self.btn_saveconfig.place(x=12, y=550)
 
@@ -212,8 +240,42 @@ class ChemicalAppUI(Drawer):  # (tk)
         if self.is_exit:
             return
 
-        if not self.board:
-            self.board = Board(self.N, self.b, self.ts, self.u, self.mode)
+        if not self._method:
+            if self.combobox_algo.get() == Algorithm.DOWNHILL.value:
+                self._method = CoordinateDescent(
+                    rows=self.N,
+                    addprob=self.b,
+                    transitprob=self.ts,
+                    mergeprob=self.u,
+                    drawer=self,
+                    sleeper=self,
+                    steps=self.G,
+                    multiplier=0.01,  # TODO: сделать варьируемым
+                    theory=self.theory
+                )
+            elif self.combobox_algo.get() == Algorithm.TPE.value:
+                self._method = TPE(
+                    rows=self.N,
+                    addprob=self.b,
+                    transitprob=self.ts,
+                    mergeprob=self.u,
+                    drawer=self,
+                    sleeper=self,
+                    steps=self.G,
+                    theory=self.theory
+                )
+            else:
+                self._method = DefaultRunner(
+                    rows=self.N,
+                    addprob=self.b,
+                    transitprob=self.ts,
+                    mergeprob=self.u,
+                    drawer=self,
+                    sleeper=self,
+                    steps=self.G,
+                    theory=self.theory
+                )
+
             self._time = datetime.datetime.now()
             self.textbox_height["state"] = "disabled"
             self.combobox_mode["state"] = "disabled"
@@ -221,7 +283,11 @@ class ChemicalAppUI(Drawer):  # (tk)
             self.textbox_ts["state"] = "disabled"
             self.textbox_margin["state"] = "disabled"
         else:
-            self.current_G = int(self.textbox_count.get()) if self.textbox_count and self.textbox_count != '' else 0
+            if self.combobox_algo.get() in [Algorithm.TPE.value, Algorithm.DOWNHILL.value]:
+                self.opti_count = int(self.textbox_opti.get()) if self.textbox_opti and self.textbox_opti != '' else 0
+            else:
+                self.current_G = int(self.textbox_count.get()) if self.textbox_count and self.textbox_count != '' else 0
+                self._method.change_steps(self.current_G)
 
         self.combobox_algo["state"] = "disabled"
         self.btb_run["state"] = "disabled"
@@ -229,53 +295,30 @@ class ChemicalAppUI(Drawer):  # (tk)
         self.btn_restart["state"] = "disabled"
         self.btn_result["state"] = "active"
 
-        if self.combobox_algo.get() == DEFAULT:
-            self.run()
-            self.is_exit = False
-            self.btn_pause["state"] = "disabled"
-            self.btb_run["state"] = "active"
-        elif self.combobox_algo.get() == DOWNHILL:
-            self.textbox_eps["state"] = "disabled"
-            while self.current_eps > self.eps:
-                self.run()
-                if self.is_exit:
-                    self.is_exit = False
-                    return
-                self.current_eps = self.current_eps - 0.1  # TODO: подвести расчет
-                self.current_G = self.G
-                self.board = Board(self.N, self.b / 2, self.ts / 2, self.u / 2, self.mode)  # TODO: with new params
-        elif self.combobox_algo.get() == TPE:
-            self.textbox_eps["state"] = "disabled"
-            while self.current_eps > self.eps:
-                self.run()
-                if self.is_exit:
-                    self.is_exit = False
-                    return
-                self.current_eps = self.current_eps - 0.1  # TODO: подвести расчет
-                self.current_G = self.G
-                self.board = Board(self.N, self.b / 2, self.ts / 2, self.u / 2, self.mode)  # TODO: with new params
+        self.run()
+
         self.pause_btn()
+
+    def sleep(self):
+        self.window.after(self.scale_sleep.get() * 1000)
+
+    def prepare_draw(self):
+        self.canvas.delete("all")
+
+    def complete_draw(self):
+        self.window.update()
+        self.sleep()
+
+    def can_pause(self):
+        return self.is_exit
 
     @run_time
     def run(self) -> None:
-        while self.current_G > 0 and not self.is_exit:
-            self.board.run()
-            if self.check_run.get() is False:
-                self.canvas.delete("all")
-                self.board.draw(self)
-                self.draw_graph()
-                self.draw_stat()
-            self.current_G -= 1
-            self.textbox_count.delete(0, 'end')
-            self.textbox_count.insert(0, str(self.current_G))
-            self.window.update()
-            self.window.after(self.scale_sleep.get() * 1000)
-
-    def default_run(self):
-        pass
-
-    def downhill_run(self):
-        pass
+        while self.opti_count > 0:
+            self._method.optimize()
+            if self.is_exit:
+                break
+            self.opti_count -= 1
 
     def pause_btn(self) -> None:
         self.is_exit = True
@@ -284,26 +327,27 @@ class ChemicalAppUI(Drawer):  # (tk)
         self.btb_run["state"] = "active"
 
     def result_btn(self) -> None:
-        if self.board:
+        if self._method:
             with open(f"results\\WeightAnalysis-{self._time.strftime('%Y-%m-%d-%H-%M-%S')}.txt", 'w') as file:
-                _dict = self.board.create_bar()
+                _dict = self._method.create_bar()
                 for key in sorted(_dict.keys()):
                     for i in range(_dict[key]):
                         file.write(str(key) + ' ')
-            self.board.clusters_conclusion(self._time.strftime('%Y-%m-%d-%H-%M-%S'))
+            self._method.clusters_conclusion(self._time.strftime('%Y-%m-%d-%H-%M-%S'))
 
-    def restart_btn(self):
-        if self.board:
-            self.board = None
-            self.G = 0
-            self.current_eps = None
-
+    def fields_clearing(self):
         self.textbox_height.delete(0, 'end')
         self.combobox_mode.delete(0, 'end')
         self.textbox_create.delete(0, 'end')
         self.textbox_ts.delete(0, 'end')
         self.textbox_margin.delete(0, 'end')
-        self.textbox_eps.delete(0, 'end')
+        self.textbox_count.delete(0, 'end')
+        self.textbox_opti.delete(0, 'end')
+
+    def restart_btn(self):
+        if self._method:
+            self._method = None
+            self.G = 0
 
         self.textbox_height["state"] = "normal"
         self.combobox_mode["state"] = "normal"
@@ -311,6 +355,8 @@ class ChemicalAppUI(Drawer):  # (tk)
         self.textbox_ts["state"] = "normal"
         self.textbox_margin["state"] = "normal"
         self.combobox_algo["state"] = "normal"
+
+        self.fields_clearing()
 
         self.btn_result["state"] = "disabled"
 
@@ -326,35 +372,35 @@ class ChemicalAppUI(Drawer):  # (tk)
         self.canvas.delete("all")
 
     def change_label_create(self, _) -> None:
-        if self.combobox_mode.get() == Modes.CONST.value:
+        if self.combobox_mode.get() == Mode.CONST.value:
             self.label_create.config(text="Вероятность появления")
         else:
             self.label_create.config(text="Правая граница вероятности")
 
-    def change_eps_visible(self, _) -> None:
-        if self.combobox_algo.get() != DOWNHILL:
-            self.textbox_eps["state"] = "disabled"
+    def change_opti_visible(self, _) -> None:
+        if self.combobox_algo.get() != Algorithm.DOWNHILL.value and self.combobox_algo.get() != Algorithm.TPE.value:
+            self.textbox_opti["state"] = "disabled"
         else:
-            self.textbox_eps["state"] = "normal"
+            self.textbox_opti["state"] = "normal"
 
     def draw_graph(self) -> None:
         if self.graph:
             self.graph.get_tk_widget().destroy()
 
-        dictionary = self.board.create_bar()
+        dictionary = self._method.create_bar()
 
-        fig = Figure(figsize=((self.GRAPHBAR_W - 10) / 100, (self.GRAPHBAR_H - 10) / 100), dpi=100)
+        fig = Figure(figsize=((UISize.GRAPHBAR_W.value - 10) / 100, (UISize.GRAPHBAR_H.value - 10) / 100), dpi=100)
         ax = fig.add_subplot(111)
         ax.set_xlabel("Weight", fontsize=10)
         ax.set_ylabel("Count",  fontsize=10)
-        rect = ax.bar(dictionary.keys(), dictionary.values(), width=.5, color='g')
+        ax.bar(dictionary.keys(), dictionary.values(), width=.5, color='g')
 
         self.graph = FigureCanvasTkAgg(fig, self.graphbar)
         self.graph.draw()
         self.graph.get_tk_widget().place(x=0, y=0)
 
     def draw_stat(self) -> None:
-        stat = self.board.conclusion_dict()
+        stat = self._method.conclusion_dict()
         self.stat_atoms.config(text=f"Всего присоединилось атомов: {stat.get('atoms')}")
         self.stat_clusters_count.config(text=f"Количество кластеров: {stat.get('clusters_count')}")
         self.stat_med_weight.config(text=f"Медиана веса кластеров: {stat.get('med')}")
@@ -362,7 +408,7 @@ class ChemicalAppUI(Drawer):  # (tk)
         self.stat_span_weight.config(text=f"Размах веса кластеров: {stat.get('span')}")
 
     def draw_point(self, row: int, col: int, color_idx: int) -> None:
-        diff = self.canvas.winfo_height() / self.board.rows
+        diff = self.canvas.winfo_height() / self._method.rows
         colors = ["#ffffff", "#e32636", "#00ffff", "#ffe135", "#1dacd6"]
         self.canvas.create_oval(col * diff, row * diff, col * diff + diff, row * diff + diff,
                                 fill=colors[0] if color_idx == 0 else colors[color_idx % len(colors)])

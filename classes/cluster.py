@@ -17,6 +17,60 @@ class Cluster:
         self.limiter = limiter
         self.is_colored = False  # TODO: возможно стоит этот параметр убрать в Board
 
+    @property
+    def atoms(self) -> list:
+        return list(self._atoms)  # TODO: временное решение, лучше убрать в интерфейс
+
+    @property
+    def number(self) -> int:
+        return self._number
+
+    @property
+    def status(self) -> Status:
+        return self._status
+
+    @status.setter
+    def status(self, new_status: Status):
+        self._status = new_status
+
+    @property
+    def adjoined(self) -> int:
+        return self._adjoined
+
+    def size(self) -> int:
+        return len(self._atoms)
+
+    def speed(self) -> int:
+        return self.size()  # TODO: доработать скорость
+
+    def border_right(self) -> Cell:
+        return self.max
+
+    def border_left(self) -> Cell:
+        return self.min
+
+    def can_separating(self) -> bool:
+        if self.border_right().y >= self.separation_limit:
+            return False
+        return True
+
+    def _define_rect_border(self) -> None:
+        self._adjoined = sum([1 if i.y == 0 else 0 for i in self._atoms])
+        x = [i.x for i in self._atoms]
+        y = [i.y for i in self._atoms]
+        self.max.x = max(x)
+        self.max.y = max(y)
+        self.min.x = min(x)
+        self.min.y = min(y)
+
+        if self.border_left().y == 0 and self.status != Status.BREAKING_AWAY:
+            self._status = Status.ON_SURFACE
+
+        if self.border_right().x < 0 or self.border_left().x >= self.limiter:
+            self._status = Status.OFF_SURFACE
+
+        self.separation_limit = (self.size() / 2) if self.size() / 2 < self.limiter else self.limiter - 1
+
     def add_atom(self, atom: Cell) -> None:
         self._atoms.append(atom)
 
@@ -44,60 +98,6 @@ class Cluster:
 
         if cluster.status == Status.BREAKING_AWAY:
             self._status = Status.BREAKING_AWAY
-
-    def size(self) -> int:
-        return len(self._atoms)
-
-    def speed(self) -> int:
-        return self.size()
-
-    @property
-    def atoms(self) -> list:
-        return list(self._atoms)  # TODO: временное решение, лучше убрать в интерфейс
-
-    @property
-    def number(self) -> int:
-        return self._number
-
-    @property
-    def status(self) -> Status:
-        return self._status
-
-    @status.setter
-    def status(self, new_status: Status):
-        self._status = new_status
-
-    def _define_rect_border(self) -> None:
-        self._adjoined = sum([1 if i.y == 0 else 0 for i in self._atoms])
-        x = [i.x for i in self._atoms]
-        y = [i.y for i in self._atoms]
-        self.max.x = max(x)
-        self.max.y = max(y)
-        self.min.x = min(x)
-        self.min.y = min(y)
-
-        if self.border_left().y == 0 and self.status != Status.BREAKING_AWAY:
-            self._status = Status.ON_SURFACE
-
-        if self.border_right().x < 0 or self.border_left().x >= self.limiter:
-            self._status = Status.OFF_SURFACE
-
-        self.separation_limit = (self.size() / 2) if self.size() / 2 < self.limiter else self.limiter - 1
-
-    def can_separating(self) -> bool:
-        if self.border_right().y >= self.separation_limit:
-            return False
-        return True
-
-    @property
-    def adjoined(self) -> int:
-        return self._adjoined
-
-    def border_right(self) -> Cell:
-        return self.max
-
-    def border_left(self) -> Cell:
-        return self.min
 
     def image(self) -> str:
         image = ""

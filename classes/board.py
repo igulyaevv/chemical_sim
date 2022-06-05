@@ -7,7 +7,7 @@ import statistics
 from interfaces.drawer import Drawer
 from interfaces.drawable import Drawable
 
-from resources.constants import RESIZE, Status, Modes
+from resources.constants import RESIZE, Status, Mode
 
 random.seed()
 
@@ -19,7 +19,7 @@ class Board(Drawable):
             addprob: float,
             transitprob: float,
             mergeprob: float,
-            current_mode: Modes = Modes.CONST
+            current_mode: Mode = Mode.CONST
     ):
         self._rows = rows
         self._columns = RESIZE
@@ -35,24 +35,24 @@ class Board(Drawable):
     def rows(self) -> int:
         return self._rows
 
-    def resize(self) -> None:
+    def _resize(self) -> None:
         """Расширяет сетку в одной размерности на величину константы RESIZE."""
 
         for row in self._place:
             row += [-1] * RESIZE
         self._columns += RESIZE
 
-    def add_atom(self, row: int) -> Cell:
+    def _add_atom(self, row: int) -> Cell:
         """Добавляет в данную строку атом. Если данная строка заполнена - производит расширение сетки."""
 
         j = self._place[row].index(-1) if -1 in self._place[row] else self._columns
         if j >= self._columns:
-            self.resize()
+            self._resize()
         self._place[row][j] = 0
 
         return Cell(row, j)
 
-    def atom_transition(self, current: Cell) -> Cell:
+    def _atom_transition(self, current: Cell) -> Cell:
         """Осуществляет переход атома в соседнюю ячейку на поверхности. Выбирает два пути: вверх или вниз вдоль
         поверхности. Может переместить на свободную ячейку, либо поверх другого атома. В случае, если оба направления
         заблокированы, возвращает входной параметр - т.е. не осуществляет перемещения."""
@@ -63,13 +63,13 @@ class Board(Drawable):
         self._place[current.x][current.y] = -1
 
         if is_up and current.x - 1 >= 0:
-            current = self.add_atom(current.x - 1)
+            current = self._add_atom(current.x - 1)
         elif not is_up and current.x + 1 < self._rows:
-            current = self.add_atom(current.x + 1)
+            current = self._add_atom(current.x + 1)
 
         return current
 
-    def check_cluster(self, current: Cell, candidates: list, temp_place: list) -> None:
+    def _check_cluster(self, current: Cell, candidates: list, temp_place: list) -> None:
         """Рекурсивная функция поиска кандидатов для добавления в существующие кластеры или для создания нового"""
 
         x = current.x
@@ -95,36 +95,36 @@ class Board(Drawable):
         candidates.append(Cell(x, y))
 
         if x - 1 >= 0:
-            self.check_cluster(Cell(x - 1, y), candidates, temp_place)
+            self._check_cluster(Cell(x - 1, y), candidates, temp_place)
 
         if x + 1 < self._rows:
-            self.check_cluster(Cell(x + 1, y), candidates, temp_place)
+            self._check_cluster(Cell(x + 1, y), candidates, temp_place)
 
         if y - 1 >= 0:
-            self.check_cluster(Cell(x, y - 1), candidates, temp_place)
+            self._check_cluster(Cell(x, y - 1), candidates, temp_place)
 
         if y + 1 < self._columns:
-            self.check_cluster(Cell(x, y + 1), candidates, temp_place)
+            self._check_cluster(Cell(x, y + 1), candidates, temp_place)
 
         if x - 1 >= 0 and y - 1 >= 0:
-            self.check_cluster(Cell(x - 1, y - 1), candidates, temp_place)
+            self._check_cluster(Cell(x - 1, y - 1), candidates, temp_place)
 
         if x + 1 < self._rows and y - 1 >= 0:
-            self.check_cluster(Cell(x + 1, y - 1), candidates, temp_place)
+            self._check_cluster(Cell(x + 1, y - 1), candidates, temp_place)
 
         if x - 1 >= 0 and y + 1 < self._columns:
-            self.check_cluster(Cell(x - 1, y + 1), candidates, temp_place)
+            self._check_cluster(Cell(x - 1, y + 1), candidates, temp_place)
 
         if x + 1 < self._rows and y + 1 < self._columns:
-            self.check_cluster(Cell(x + 1, y + 1), candidates, temp_place)
+            self._check_cluster(Cell(x + 1, y + 1), candidates, temp_place)
 
-    def create_cluster(self, current: Cell) -> None:
+    def _create_cluster(self, current: Cell) -> None:
         """Создает кластерновый кластер, если в окрестности есть 4 свободных атома, либо добавляет свободные атомы к
         существующим кластера, либо производит слияние кластеров"""
 
         temp_place = [[0] * self._columns for _ in range(self._rows)]
         candidates = []
-        self.check_cluster(current, candidates, temp_place)
+        self._check_cluster(current, candidates, temp_place)
 
         min_clusternumber = 0
         for atom in candidates:
@@ -140,7 +140,7 @@ class Board(Drawable):
                 for atom in candidates:
                     new_cluster.add_atom(atom)
                 self._clusters[new_cluster.number] = new_cluster
-                self.cluster_coloring(self._clusters.get(new_cluster.number))
+                self._cluster_coloring(self._clusters.get(new_cluster.number))
         else:
             merging = set()
             for atom in candidates:
@@ -176,11 +176,11 @@ class Board(Drawable):
 
                     if new_found != -1:
                         self._clusters[new_found].add_atom(atom)
-                        self.cluster_coloring(self._clusters.get(new_found))
+                        self._cluster_coloring(self._clusters.get(new_found))
             if len(merging) > 0:
-                self.cluster_merger([i for i in merging] + [min_clusternumber])  # TODO: Сделать список слияния возвращаемым, чтобы использовать его вне метода, в управляющем методе
+                self._cluster_merger([i for i in merging] + [min_clusternumber])  # TODO: Сделать список слияния возвращаемым, чтобы использовать его вне метода, в управляющем методе
 
-    def check_cluster_for_clusters(self, found: int) -> None:
+    def _check_cluster_for_clusters(self, found: int) -> None:
         """Определяет, есть ли в окрестности данного кластера другие кластеры или свободные атомы.
         Если есть, то запускает процедуру создание кластера (create_cluster)"""
 
@@ -201,10 +201,10 @@ class Board(Drawable):
                         self._place[x + 1][y - 1] != -1 or
                         x + 1 < self._rows and y + 1 < self._columns and self._place[x + 1][y + 1] != cluster_number and
                         self._place[x + 1][y + 1] != -1):
-                    self.create_cluster(self._clusters[found].atoms[i])
+                    self._create_cluster(self._clusters[found].atoms[i])
                     return
 
-    def cluster_uncoloring(self, cluster: Cluster) -> None:
+    def _cluster_uncoloring(self, cluster: Cluster) -> None:
         """Убирает атомы кластера с сетки"""
 
         for item in cluster.atoms:
@@ -213,18 +213,18 @@ class Board(Drawable):
 
         cluster.is_colored = False
 
-    def cluster_coloring(self, cluster: Cluster) -> None:
+    def _cluster_coloring(self, cluster: Cluster) -> None:
         """Отрисовывает атомы кластера на сетку"""
 
         for item in cluster.atoms:
             if item.y >= self._columns:
-                self.resize()
+                self._resize()
             if 0 <= item.x < self._rows and 0 <= item.y < self._columns:
                 self._place[item.x][item.y] = cluster.number
 
         cluster.is_colored = True
 
-    def cluster_merger(self, candidates: list) -> None:
+    def _cluster_merger(self, candidates: list) -> None:
         """Процедура слияние кластеров. Если кластеров > 2, тогда все кластеры сливаются в один, в противном случае
         на основе генератора случайных чисел либо сливает кластеры в один, либо же отталкивает друг от друга
         в зависимости от размеров кластера"""
@@ -233,15 +233,15 @@ class Board(Drawable):
             for i in range(len(candidates) - 1):
                 self._clusters[candidates[-1]].merger(self._clusters[candidates[i]])
                 self._clusters[candidates[i]].status = Status.MERGING
-                self.cluster_uncoloring(self._clusters[candidates[i]])
-            self.cluster_coloring(self._clusters.get(candidates[-1]))
+                self._cluster_uncoloring(self._clusters[candidates[i]])
+            self._cluster_coloring(self._clusters.get(candidates[-1]))
         else:
             randmerge = random.random()
             if randmerge <= self._merge_cluster or self._clusters[candidates[0]].status == Status.ON_SURFACE or \
                     self._clusters[candidates[1]].status == Status.ON_SURFACE:
                 self._clusters[candidates[1]].merger(self._clusters[candidates[0]])
-                self.cluster_uncoloring(self._clusters[candidates[0]])
-                self.cluster_coloring(self._clusters[candidates[1]])
+                self._cluster_uncoloring(self._clusters[candidates[0]])
+                self._cluster_coloring(self._clusters[candidates[1]])
                 self._clusters[candidates[0]].status = Status.MERGING
             else:
                 # TODO: здесь есть баг, что он может каким-то образом находясь на поверхности дернутся на одну ячейку вверх
@@ -259,18 +259,18 @@ class Board(Drawable):
                     if self._clusters[repulsion_index].status != Status.UP_ALONG_SURFACE:
                         self._clusters[repulsion_index].status = Status.UP_ALONG_SURFACE
 
-                self.cluster_uncoloring(self._clusters.get(repulsion_index))
+                self._cluster_uncoloring(self._clusters.get(repulsion_index))
                 self._clusters[repulsion_index].transition()
-                self.cluster_coloring(self._clusters.get(repulsion_index))
+                self._cluster_coloring(self._clusters.get(repulsion_index))
 
-    def queue_transit(self):
+    def _queue_transit(self):
         """Процедура движения кластеров (имитация в дискретной модели), поднимает кластеры со статусом BREAKING_AWAY
         с поверхности, передвигает кластеры со статусами UP_ALONG_SURFACE, DOWN_ALONG_SURFACE вдоль поверхности"""
 
         for cluster in self._clusters.values():
             if cluster.status == Status.OFF_SURFACE and cluster.is_colored:
                 cluster.is_colored = not cluster.is_colored
-                self.cluster_uncoloring(cluster)
+                self._cluster_uncoloring(cluster)
             if cluster.status in (Status.MERGING, Status.ON_SURFACE, Status.OFF_SURFACE):
                 continue
 
@@ -282,23 +282,23 @@ class Board(Drawable):
 
                 j = speed
                 while j > 0 and not _exit:
-                    self.check_cluster_for_clusters(cluster.number)
+                    self._check_cluster_for_clusters(cluster.number)
                     if cluster.status in (Status.MERGING, Status.ON_SURFACE, Status.OFF_SURFACE):
                         _exit = True
                         continue
-                    self.cluster_uncoloring(self._clusters.get(cluster.number))
+                    self._cluster_uncoloring(self._clusters.get(cluster.number))
                     cluster.transition()
-                    self.cluster_coloring(self._clusters.get(cluster.number))
+                    self._cluster_coloring(self._clusters.get(cluster.number))
                     j -= 1
 
             if cluster.status == Status.BREAKING_AWAY:
                 if cluster.can_separating():
-                    self.check_cluster_for_clusters(cluster.number)
+                    self._check_cluster_for_clusters(cluster.number)
                     if cluster.status in (Status.MERGING, Status.ON_SURFACE, Status.OFF_SURFACE):
                         continue
-                    self.cluster_uncoloring(self._clusters.get(cluster.number))
+                    self._cluster_uncoloring(self._clusters.get(cluster.number))
                     cluster.separation()
-                    self.cluster_coloring(self._clusters.get(cluster.number))
+                    self._cluster_coloring(self._clusters.get(cluster.number))
                 elif cluster.border_left().y != 0:
                     cluster.status = random.choice((Status.UP_ALONG_SURFACE, Status.DOWN_ALONG_SURFACE))
 
@@ -306,27 +306,27 @@ class Board(Drawable):
         """Метод, который выполняет один шаг моделирования"""
 
         create_atom_prob = self._create_atom
-        if self._current_mode == Modes.VAR:
+        if self._current_mode == Mode.VAR:
             create_atom_prob = random.random()
 
         rand_create = random.random()
         if rand_create <= create_atom_prob:
             self._atoms_count += 1
             position = random.randint(0, self._rows - 1)
-            current = self.add_atom(position)
-            self.create_cluster(current)
+            current = self._add_atom(position)
+            self._create_cluster(current)
             if self._place[current.x][current.y] == 0:
                 rand_transition = random.random()
                 if rand_transition <= self._transit_atom:
-                    current = self.atom_transition(current)                                                     # TODO: можно изменить логику, проверять наличие кластера только для кластеров при отсоединении
-                    self.create_cluster(current)                                                                #  а атомы присоединять сразу
+                    current = self._atom_transition(current)                                                     # TODO: можно изменить логику, проверять наличие кластера только для кластеров при отсоединении
+                    self._create_cluster(current)                                                                #  а атомы присоединять сразу
             if self._place[current.x][current.y] > 0:
                 rand_separation = random.random()
                 cluster_number = self._place[current.x][current.y]
                 separation_prob = 1.0 - self._clusters[cluster_number].adjoined / self._clusters[cluster_number].size()
                 if rand_separation < separation_prob:
                     self._clusters.get(self._place[current.x][current.y]).status = Status.BREAKING_AWAY
-            self.queue_transit()  # TODO: добавить проверку на необходимость запуска, как вариант сделать счетчики на каждый тип кластера запускать queue только, когда это требуется
+            self._queue_transit()  # TODO: добавить проверку на необходимость запуска, как вариант сделать счетчики на каждый тип кластера запускать queue только, когда это требуется
 
     def draw(self, dr: Drawer) -> None:
         """Метод отрисовки текущей сетки с помощью объекта типа Drawer"""
