@@ -3,6 +3,8 @@ from interfaces.optimization import Optimization
 from interfaces.drawer import Drawer
 from interfaces.sleeper import Sleeper
 
+from resources.histograms import hist4
+
 from math import sqrt
 
 from numpy.polynomial.polynomial import polyfit
@@ -27,6 +29,7 @@ class BaseComparator(Optimization):
         self.drawer = drawer
         self.board = Board(rows=self.rows, addprob=addprob, transitprob=transitprob, mergeprob=mergeprob)
         self.steps = steps
+        self.current_steps = 0
 
     def optimize(self):
         pass
@@ -37,20 +40,21 @@ class BaseComparator(Optimization):
         self.drawer.complete_draw()
 
     def modelling(self, steps: int):
-        current_G = self.steps
-        while current_G > 0 and not self.sleeper.can_pause():
+        self.current_steps = self.steps
+        while self.current_steps > 0 and not self.sleeper.can_pause():
             self.board.run()
             self.draw()
             self.sleeper.sleep()
-            current_G -= 1
+            self.current_steps -= 1
 
     @staticmethod
     def hist_compare(theory, result) -> float:
+        theory = hist4
         if len(result) == len(theory):
             eps = sqrt(
                 sum(
                     (
-                        list(result.values())[i] ** 2 - list(theory.values())[i] ** 2
+                        abs(list(result.values())[i] ** 2 - list(theory.values())[i] ** 2)
                         for i in range(len(theory))
                     )
                 )
