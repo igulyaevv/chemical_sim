@@ -1,3 +1,5 @@
+import datetime
+
 from classes.base_comparator import BaseComparator
 from interfaces.drawer import Drawer
 from interfaces.sleeper import Sleeper
@@ -31,3 +33,12 @@ class DefaultRunner(BaseComparator):
 
     def change_steps(self, new_steps: int):
         self.steps = new_steps
+
+    def result(self):
+        _time = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+        with open(f"results\\WeightAnalysis-{_time}.txt", 'w') as file:
+            _dict = self.board.create_bar()
+            for key in sorted(_dict.keys()):
+                for i in range(_dict[key]):
+                    file.write(str(key) + ' ')
+        self.board.clusters_conclusion(_time)

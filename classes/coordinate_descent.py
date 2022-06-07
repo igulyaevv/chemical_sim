@@ -65,5 +65,5 @@ class CoordinateDescent(BaseComparator):
         if value <= 0:
             print('optimized')
 
-    def hist(self):
+    def result(self):
         return self._hist  # TODO: переделать вывод

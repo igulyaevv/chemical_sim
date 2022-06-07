@@ -51,5 +51,5 @@ class TPE(BaseComparator):
     def optimize(self):
         self.study.optimize(lambda trial: self._get_next_params(trial), n_trials=1)
 
-    def hist(self):
+    def result(self):
         return self.study.get_trials()  # TODO: сделать преобразование вывода

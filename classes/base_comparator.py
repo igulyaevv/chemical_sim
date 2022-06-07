@@ -34,9 +34,13 @@ class BaseComparator(Optimization):
     def optimize(self):
         pass
 
+    def result(self):
+        pass
+
     def draw(self):
         self.drawer.prepare_draw()
         self.board.draw(self.drawer)
+        self.drawer.draw_bar(self.board.create_bar())
         self.drawer.complete_draw()
 
     def modelling(self, steps: int):

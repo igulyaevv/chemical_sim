@@ -8,3 +8,6 @@ class Drawer:
 
     def complete_draw(self):
         pass
+
+    def draw_bar(self, bar: dict):
+        pass

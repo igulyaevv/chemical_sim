@@ -1,4 +1,5 @@
 class Optimization:
+
     def optimize(self):
         pass
     
@@ -7,4 +8,7 @@ class Optimization:
         pass
 
     def modelling(self, steps: int):
+        pass
+
+    def result(self):
         pass

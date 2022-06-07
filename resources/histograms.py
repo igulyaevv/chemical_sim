@@ -242,5 +242,5 @@ hist4 = {
 if __name__ == '__main__':
     plt.xlabel("Weight", fontsize=10)
     plt.ylabel("Count",  fontsize=10)
-    plt.bar(hist1.keys(), hist1.values(), width=.1, color='g')
+    plt.bar(hist4.keys(), hist4.values(), width=.1, color='g')
     plt.show()

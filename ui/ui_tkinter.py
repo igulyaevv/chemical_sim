@@ -32,7 +32,7 @@ class ChemicalAppUI(Drawer, Sleeper):  # (tk)
 
         self.opti_count = 0
 
-        self._time = None
+        self._is_drawing = False
 
         self.window = tk.Tk()
         self.sidebar = tk.Frame(
@@ -96,7 +96,9 @@ class ChemicalAppUI(Drawer, Sleeper):  # (tk)
 
         self.btb_run = tk.Button(self.sidebar, text="Run", command=self.run_btn)
         self.no_ui = tk.BooleanVar()
-        self.cb_run = tk.Checkbutton(self.sidebar, text="No UI", variable=self.no_ui)
+        self.no_bar = tk.BooleanVar()
+        self.cb_run = tk.Checkbutton(self.sidebar, text="No canvas", variable=self.no_ui)
+        self.cb_bar = tk.Checkbutton(self.sidebar, text="No bar", variable=self.no_bar)
         self.btn_pause = tk.Button(self.sidebar, text="Pause", command=self.pause_btn)
         self.btn_restart = tk.Button(self.sidebar, text="Rerun", command=self.restart_btn)
         self.btn_pause["state"] = "disabled"
@@ -191,7 +193,8 @@ class ChemicalAppUI(Drawer, Sleeper):  # (tk)
         self.opti_count = int(self.textbox_opti.get()) if self.combobox_algo.get() in [
             Algorithm.DOWNHILL.value, Algorithm.TPE.value
         ] else 1
-        self.multiplier = int(self.textbox_multiplier.get())
+        self.multiplier = float(self.textbox_multiplier.get()) if self.combobox_algo.get() == Algorithm.DOWNHILL.value \
+            else 0.01
 
     def configurate(self) -> None:
         self.window.config(width=UISize.WIN_W.value, height=UISize.WIN_H.value)
@@ -223,12 +226,13 @@ class ChemicalAppUI(Drawer, Sleeper):  # (tk)
         self.textbox_multiplier.place(x=12, y=425)
 
         self.btb_run.place(x=12, y=475, width=int(UISize.SIDEBAR_W.value / 3))
-        self.cb_run.place(x=int(UISize.SIDEBAR_W.value / 3) + 20, y=475, width=int(UISize.SIDEBAR_W.value / 3))
+        self.cb_run.place(x=int(UISize.SIDEBAR_W.value / 3) + 20, y=475, width=int(UISize.SIDEBAR_W.value / 2))
+        self.cb_bar.place(x=int(UISize.SIDEBAR_W.value / 3) + 20, y=500, width=int(UISize.SIDEBAR_W.value / 2.5))
         self.btn_pause.place(x=12, y=500, width=int(UISize.SIDEBAR_W.value / 3))
         self.btn_restart.place(x=12, y=525, width=int(UISize.SIDEBAR_W.value / 3))
         self.btn_result.place(
             x=UISize.SIDEBAR_W.value - 20 - int(UISize.SIDEBAR_W.value / 3),
-            y=500,
+            y=525,
             width=int(UISize.SIDEBAR_W.value / 3)
         )
         self.btn_openconfig.place(x=12, y=565)
@@ -259,7 +263,7 @@ class ChemicalAppUI(Drawer, Sleeper):  # (tk)
                     drawer=self,
                     sleeper=self,
                     steps=self.G,
-                    multiplier=0.01,  # TODO: сделать варьируемым
+                    multiplier=self.multiplier,
                     theory=self.theory
                 )
             elif self.combobox_algo.get() == Algorithm.TPE.value:
@@ -285,7 +289,6 @@ class ChemicalAppUI(Drawer, Sleeper):  # (tk)
                     theory=self.theory
                 )
 
-            self._time = datetime.datetime.now()
             self.textbox_height["state"] = "disabled"
             self.combobox_mode["state"] = "disabled"
             self.textbox_create["state"] = "disabled"
@@ -306,6 +309,8 @@ class ChemicalAppUI(Drawer, Sleeper):  # (tk)
         self.btn_restart["state"] = "disabled"
         self.btn_result["state"] = "active"
 
+        # TODO: добавить или убрать следующие два коммента, добавить - убрать функционал паузы,
+        #  убрать - решить проблему с плохими попытками оптимизации из-за их приостановки
         # if self.combobox_algo.get() in [Algorithm.TPE.value, Algorithm.DOWNHILL.value]:
         #     self.btn_pause["state"] = "disabled"
 
@@ -318,11 +323,44 @@ class ChemicalAppUI(Drawer, Sleeper):  # (tk)
         self.window.after(self.scale_sleep.get() * 1000)
 
     def prepare_draw(self):
-        self.canvas.delete("all")
+        if not self.no_ui.get() or self._is_drawing:
+            self.canvas.delete("all")
+            self._is_drawing &= False
+
+    def draw_point(self, row: int, col: int, color_idx: int) -> None:
+        if not self.no_ui.get():
+            self._is_drawing |= True
+            diff = self.canvas.winfo_height() / self._method.rows
+            colors = ["#ffffff", "#e32636", "#00ffff", "#ffe135", "#1dacd6"]
+            self.canvas.create_oval(col * diff, row * diff, col * diff + diff, row * diff + diff,
+                                    fill=colors[0] if color_idx == 0 else colors[color_idx % len(colors)])
 
     def complete_draw(self):
         self.window.update()
         self.sleep()
+
+    def draw_bar(self, bar: dict) -> None:
+        if not self.no_bar.get():
+            if self.graph:
+                self.graph.get_tk_widget().destroy()
+
+            fig = Figure(figsize=((UISize.GRAPHBAR_W.value - 10) / 100, (UISize.GRAPHBAR_H.value - 10) / 100), dpi=100)
+            ax = fig.add_subplot(111)
+            ax.set_xlabel("Weight", fontsize=10)
+            ax.set_ylabel("Count",  fontsize=10)
+            ax.bar(bar.keys(), bar.values(), width=.5, color='g')
+
+            self.graph = FigureCanvasTkAgg(fig, self.graphbar)
+            self.graph.draw()
+            self.graph.get_tk_widget().place(x=0, y=0)
+
+    def draw_stat(self) -> None:
+        stat = self._method.conclusion_dict()
+        self.stat_atoms.config(text=f"Всего присоединилось атомов: {stat.get('atoms')}")
+        self.stat_clusters_count.config(text=f"Количество кластеров: {stat.get('clusters_count')}")
+        self.stat_med_weight.config(text=f"Медиана веса кластеров: {stat.get('med')}")
+        self.stat_avg_weight.config(text=f"Среднее значение веса кластеров: {stat.get('avg')}")
+        self.stat_span_weight.config(text=f"Размах веса кластеров: {stat.get('span')}")
 
     def can_pause(self):
         return self.is_exit
@@ -351,12 +389,7 @@ class ChemicalAppUI(Drawer, Sleeper):  # (tk)
 
     def result_btn(self) -> None:
         if self._method:
-            with open(f"results\\WeightAnalysis-{self._time.strftime('%Y-%m-%d-%H-%M-%S')}.txt", 'w') as file:
-                _dict = self._method.create_bar()
-                for key in sorted(_dict.keys()):
-                    for i in range(_dict[key]):
-                        file.write(str(key) + ' ')
-            self._method.clusters_conclusion(self._time.strftime('%Y-%m-%d-%H-%M-%S'))
+            self._method.result()
 
     def fields_clearing(self):
         self.textbox_height.delete(0, 'end')
@@ -409,36 +442,6 @@ class ChemicalAppUI(Drawer, Sleeper):  # (tk)
             self.textbox_multiplier["state"] = "disabled"
         else:
             self.textbox_multiplier["state"] = "normal"
-
-    def draw_graph(self) -> None:
-        if self.graph:
-            self.graph.get_tk_widget().destroy()
-
-        dictionary = self._method.create_bar()
-
-        fig = Figure(figsize=((UISize.GRAPHBAR_W.value - 10) / 100, (UISize.GRAPHBAR_H.value - 10) / 100), dpi=100)
-        ax = fig.add_subplot(111)
-        ax.set_xlabel("Weight", fontsize=10)
-        ax.set_ylabel("Count",  fontsize=10)
-        ax.bar(dictionary.keys(), dictionary.values(), width=.5, color='g')
-
-        self.graph = FigureCanvasTkAgg(fig, self.graphbar)
-        self.graph.draw()
-        self.graph.get_tk_widget().place(x=0, y=0)
-
-    def draw_stat(self) -> None:
-        stat = self._method.conclusion_dict()
-        self.stat_atoms.config(text=f"Всего присоединилось атомов: {stat.get('atoms')}")
-        self.stat_clusters_count.config(text=f"Количество кластеров: {stat.get('clusters_count')}")
-        self.stat_med_weight.config(text=f"Медиана веса кластеров: {stat.get('med')}")
-        self.stat_avg_weight.config(text=f"Среднее значение веса кластеров: {stat.get('avg')}")
-        self.stat_span_weight.config(text=f"Размах веса кластеров: {stat.get('span')}")
-
-    def draw_point(self, row: int, col: int, color_idx: int) -> None:
-        diff = self.canvas.winfo_height() / self._method.rows
-        colors = ["#ffffff", "#e32636", "#00ffff", "#ffe135", "#1dacd6"]
-        self.canvas.create_oval(col * diff, row * diff, col * diff + diff, row * diff + diff,
-                                fill=colors[0] if color_idx == 0 else colors[color_idx % len(colors)])
 
     def start(self) -> None:
         self.configurate()
