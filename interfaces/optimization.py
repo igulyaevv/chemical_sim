@@ -7,7 +7,7 @@ class Optimization:
     def hist_compare(theory, result):
         pass
 
-    def modelling(self, steps: int):
+    def modelling(self):
         pass
 
     def result(self):

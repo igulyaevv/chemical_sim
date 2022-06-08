@@ -28,8 +28,23 @@ class DefaultRunner(BaseComparator):
             steps=steps
         )
 
+    def _modelling(self):
+        self.board.run()
+        self.draw()
+        self.sleeper.sleep()
+
+    def modelling(self):
+        if self.theory is None:
+            self.current_steps = self.steps
+            while self.current_steps > 0 and not self.sleeper.can_pause():
+                self._modelling()
+                self.current_steps -= 1
+        else:
+            while len(self.board.create_bar()) <= len(self.theory) and not self.sleeper.can_pause():
+                self._modelling()
+
     def optimize(self):
-        self.modelling(self.steps)
+        self.modelling()
 
     def change_steps(self, new_steps: int):
         self.steps = new_steps

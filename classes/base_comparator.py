@@ -3,8 +3,6 @@ from interfaces.optimization import Optimization
 from interfaces.drawer import Drawer
 from interfaces.sleeper import Sleeper
 
-from resources.histograms import hist4
-
 from math import sqrt
 
 from numpy.polynomial.polynomial import polyfit
@@ -43,46 +41,29 @@ class BaseComparator(Optimization):
         self.drawer.draw_bar(self.board.create_bar())
         self.drawer.complete_draw()
 
-    def modelling(self, steps: int):
-        self.current_steps = self.steps
-        while self.current_steps > 0 and not self.sleeper.can_pause():
-            self.board.run()
-            self.draw()
-            self.sleeper.sleep()
-            self.current_steps -= 1
+    def modelling(self):
+        pass
 
     @staticmethod
     def hist_compare(theory, result) -> float:
-        theory = hist4
-        if len(result) == len(theory):
-            eps = sqrt(
-                sum(
-                    (
-                        abs(list(result.values())[i] ** 2 - list(theory.values())[i] ** 2)
-                        for i in range(len(theory))
-                    )
-                )
+        sorted_theory = sorted(theory.items(), key=lambda x: x[0])
+        sorted_result = sorted(result.items(), key=lambda x: x[0])
+        values_theory = list(i[1] for i in sorted_theory)
+        values_result = list(i[1] for i in sorted_result)
+
+        eps = set()
+        for i in range(len(values_result) - len(values_theory) + 1):
+            eps.add(
+                sum((values_result[j + i] ** 2 - values_theory[j] ** 2 for j in range(len(theory))))
             )
-        elif len(result) > len(theory):
-            eps = set()
-            for i in range(len(result) - len(theory) + 1):
-                eps.add(
-                    sqrt(
-                        sum(
-                            (
-                                (list(result.values())[j + i] - list(theory.values())[j]) ** 2
-                                for j in range(len(theory))
-                            )
-                        )
-                    )
-                )
-            eps = min(eps)
-        else:
-            eps = 1  # TODO: добить до равенства или неравенства
+        eps = min(eps)
 
-        #koeff1 = polyfit(x=list(result.keys()), y=list(result.values()), deg=1)
-        #koeff2 = polyfit(x=list(theory.keys()), y=list(theory.values()), deg=1)
+        eps = sqrt(abs(eps))
 
-        #eps = sqrt(sum(((koeff1[0] - koeff2[0]) ** 2, (koeff1[1] - koeff2[1]) ** 2))) * eps
+        koeff1 = polyfit(x=list(result.keys()), y=list(result.values()), deg=1)
+        koeff2 = polyfit(x=list(theory.keys()), y=list(theory.values()), deg=1)
 
-        return float(eps)
+        # TODO: вырбать вариант расчета отклонения eps = sqrt(sum(((koeff1[0] - koeff2[0]) ** 2, (koeff1[1] - koeff2[1]) ** 2))) * eps
+        eps = abs(koeff1[1] - koeff2[1]) * eps
+
+        return eps

@@ -326,7 +326,7 @@ class Board(Drawable):
                 separation_prob = 1.0 - self._clusters[cluster_number].adjoined / self._clusters[cluster_number].size()
                 if rand_separation < separation_prob:
                     self._clusters.get(self._place[current.x][current.y]).status = Status.BREAKING_AWAY
-            self._queue_transit()  # TODO: добавить проверку на необходимость запуска, как вариант сделать счетчики на каждый тип кластера запускать queue только, когда это требуется
+        self._queue_transit()  # TODO: добавить проверку на необходимость запуска, как вариант сделать счетчики на каждый тип кластера запускать queue только, когда это требуется
 
     def draw(self, dr: Drawer) -> None:
         """Метод отрисовки текущей сетки с помощью объекта типа Drawer"""

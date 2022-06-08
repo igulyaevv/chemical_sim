@@ -10,7 +10,7 @@ from interfaces.sleeper import Sleeper
 from interfaces.drawer import Drawer
 
 import tkinter as tk
-from tkinter import ttk, messagebox, HORIZONTAL
+from tkinter import ttk, messagebox, HORIZONTAL, DISABLED, NORMAL
 from tkinter.filedialog import askopenfilename, asksaveasfilename
 
 from matplotlib.figure import Figure
@@ -93,6 +93,7 @@ class ChemicalAppUI(Drawer, Sleeper):  # (tk)
         self.label_multiplier = tk.Label(self.sidebar, text="Начальный шаг")
         self.textbox_multiplier = tk.Entry(self.sidebar, validate="key", validatecommand=self.vcmd)
         self.textbox_multiplier["state"] = "disabled"
+        self.btn_openhist = tk.Button(self.sidebar, text="Histogram", command=self.open_hist)
 
         self.btb_run = tk.Button(self.sidebar, text="Run", command=self.run_btn)
         self.no_ui = tk.BooleanVar()
@@ -109,7 +110,7 @@ class ChemicalAppUI(Drawer, Sleeper):  # (tk)
         self.btn_saveconfig = tk.Button(self.sidebar, text="Сохранить конфиг", command=self.save_configfile)
 
         self.label_sleep = tk.Label(self.sidebar, text="Задержка между итерациями")
-        self.scale_sleep = tk.Scale(self.sidebar, from_=0, to=5, orient=HORIZONTAL)
+        self.scale_sleep = tk.Scale(self.sidebar, from_=0, to=3, orient=HORIZONTAL, resolution=0.1)
 
         self.stat_atoms = tk.Label(self.statbar)
         self.stat_clusters_count = tk.Label(self.statbar)
@@ -159,6 +160,24 @@ class ChemicalAppUI(Drawer, Sleeper):  # (tk)
                 output_file.write(str(item) + '\n')
         self.window.title(f"Chemical Simulator - {filepath}")
 
+    def open_hist(self) -> None:
+        filepath = askopenfilename(
+            filetypes=[("Текстовые файлы", "*.txt"), ("Все файлы", "*.*")]
+        )
+        if not filepath:
+            return
+        with open(filepath, "r") as input_file:
+            text = input_file.readline()
+            try:
+                points = text.replace(' ', '').split(',')
+                self.theory = {}
+                for point in points:
+                    item = point.split(':')
+                    self.theory[float(item[0])] = float(item[1])
+                print(self.theory)
+            except:
+                return
+
     @staticmethod
     def validate(new_value) -> bool:
         try:
@@ -175,7 +194,8 @@ class ChemicalAppUI(Drawer, Sleeper):  # (tk)
                 or (self.combobox_algo.get() in [Algorithm.DOWNHILL.value, Algorithm.TPE.value]
                     and self.textbox_opti.get() == '') or (self.combobox_algo.get() == Algorithm.DOWNHILL.value and
                                                            self.textbox_multiplier.get() == '')\
-                or self.combobox_algo.get() == '':
+                or self.combobox_algo.get() == ''\
+                or (self.combobox_algo.get() in [Algorithm.DOWNHILL.value, Algorithm.TPE.value] and self.theory is None):
             messagebox.showinfo("Warning", "Не выбран режим работы!") if self.combobox_algo.get() == ''\
                 else messagebox.showinfo("Warning", "Заполнены не все поля")
             self.is_exit = True
@@ -225,16 +245,13 @@ class ChemicalAppUI(Drawer, Sleeper):  # (tk)
         self.label_multiplier.place(x=10, y=400)
         self.textbox_multiplier.place(x=12, y=425)
 
-        self.btb_run.place(x=12, y=475, width=int(UISize.SIDEBAR_W.value / 3))
-        self.cb_run.place(x=int(UISize.SIDEBAR_W.value / 3) + 20, y=475, width=int(UISize.SIDEBAR_W.value / 2))
-        self.cb_bar.place(x=int(UISize.SIDEBAR_W.value / 3) + 20, y=500, width=int(UISize.SIDEBAR_W.value / 2.5))
-        self.btn_pause.place(x=12, y=500, width=int(UISize.SIDEBAR_W.value / 3))
-        self.btn_restart.place(x=12, y=525, width=int(UISize.SIDEBAR_W.value / 3))
-        self.btn_result.place(
-            x=UISize.SIDEBAR_W.value - 20 - int(UISize.SIDEBAR_W.value / 3),
-            y=525,
-            width=int(UISize.SIDEBAR_W.value / 3)
-        )
+        self.btb_run.place(x=12, y=450, width=int(UISize.SIDEBAR_W.value / 3))
+        self.cb_run.place(x=int(UISize.SIDEBAR_W.value / 3) + 20, y=450, width=int(UISize.SIDEBAR_W.value / 2))
+        self.cb_bar.place(x=int(UISize.SIDEBAR_W.value / 3) + 20, y=475, width=int(UISize.SIDEBAR_W.value / 2.5))
+        self.btn_openhist.place(x=int(UISize.SIDEBAR_W.value / 3) + 30, y=500, width=int(UISize.SIDEBAR_W.value / 3))
+        self.btn_pause.place(x=12, y=475, width=int(UISize.SIDEBAR_W.value / 3))
+        self.btn_restart.place(x=12, y=500, width=int(UISize.SIDEBAR_W.value / 3))
+        self.btn_result.place(x=12, y=525, width=int(UISize.SIDEBAR_W.value / 3))
         self.btn_openconfig.place(x=12, y=565)
         self.btn_saveconfig.place(x=12, y=590)
 
@@ -320,7 +337,7 @@ class ChemicalAppUI(Drawer, Sleeper):  # (tk)
             self.pause_btn()
 
     def sleep(self):
-        self.window.after(self.scale_sleep.get() * 1000)
+        self.window.after(int(self.scale_sleep.get() * 1000))
 
     def prepare_draw(self):
         if not self.no_ui.get() or self._is_drawing:
@@ -405,16 +422,18 @@ class ChemicalAppUI(Drawer, Sleeper):  # (tk)
             self._method = None
             self.G = 0
 
+        self.theory = None
+
         self.textbox_height["state"] = "normal"
         self.combobox_mode["state"] = "normal"
         self.textbox_create["state"] = "normal"
         self.textbox_ts["state"] = "normal"
         self.textbox_margin["state"] = "normal"
         self.combobox_algo["state"] = "normal"
-
-        self.fields_clearing()
+        self.textbox_count["state"] = "normal"
 
         self.btn_result["state"] = "disabled"
+        self.btn_restart["state"] = "disabled"
 
         if self.graph:
             self.graph.get_tk_widget().destroy()
@@ -435,10 +454,12 @@ class ChemicalAppUI(Drawer, Sleeper):  # (tk)
 
     def change_opti_visible(self, _) -> None:
         if self.combobox_algo.get() != Algorithm.DOWNHILL.value and self.combobox_algo.get() != Algorithm.TPE.value:
+            self.textbox_opti.delete(0, 'end')
             self.textbox_opti["state"] = "disabled"
         else:
             self.textbox_opti["state"] = "normal"
         if self.combobox_algo.get() != Algorithm.DOWNHILL.value:
+            self.textbox_multiplier.delete(0, 'end')
             self.textbox_multiplier["state"] = "disabled"
         else:
             self.textbox_multiplier["state"] = "normal"

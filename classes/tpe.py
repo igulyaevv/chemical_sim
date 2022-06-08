@@ -31,17 +31,23 @@ class TPE(BaseComparator):
         )
         self.first_trial = True
 
+    def modelling(self):
+        while len(self.board.create_bar()) <= len(self.theory) and not self.sleeper.can_pause():
+            self.board.run()
+            self.draw()
+            self.sleeper.sleep()
+
     def _get_next_params(self, trial):
         if self.current_steps == 0:
             if self.first_trial:
                 self.first_trial = False
             else:
                 add = trial.suggest_float("add", 0, 1)
-                merge = trial.suggest_float("merge", 0, 1)
                 transit = trial.suggest_float("transit", 0, 1)
+                merge = trial.suggest_float("merge", 0, 1)
                 self.board = Board(self.rows, add, transit, merge)
 
-        self.modelling(self.steps)
+        self.modelling()
 
         if self.sleeper.can_pause():
             return  # TODO: перевести в паузу потока

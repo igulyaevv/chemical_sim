@@ -31,6 +31,12 @@ class CoordinateDescent(BaseComparator):
         self.multiplier = multiplier
         self.first_trial = True
 
+    def modelling(self):
+        while len(self.board.create_bar()) <= len(self.theory) and not self.sleeper.can_pause():
+            self.board.run()
+            self.draw()
+            self.sleeper.sleep()
+
     def optimize(self):
         current_optimize = []
         for prob in range(len(self.probs)):
@@ -44,7 +50,7 @@ class CoordinateDescent(BaseComparator):
             else:
                 self.board = Board(self.rows, self.probs[0], self.probs[1], self.probs[2])
 
-            self.modelling(self.steps)
+            self.modelling()
             value = self.hist_compare(self.theory, self.board.create_bar())
             current_optimize.append((self.probs[0], self.probs[1], self.probs[2], value))
             self.probs[prob] += self.multiplier
