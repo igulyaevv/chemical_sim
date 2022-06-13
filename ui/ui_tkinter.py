@@ -1,5 +1,3 @@
-import datetime
-
 from classes.coordinate_descent import CoordinateDescent
 from classes.default_runner import DefaultRunner
 from classes.tpe import TPE
@@ -105,7 +103,7 @@ class ChemicalAppUI(Drawer, Sleeper):  # (tk)
         self.btn_pause["state"] = "disabled"
         self.btn_restart["state"] = "disabled"
         self.btn_result = tk.Button(self.sidebar, text="Result", command=self.result_btn)
-        self.btn_result["state"] = "disabled"
+        self.btn_result["state"] = "disabled"  # TODO: изменить: ["state"] -> .state()
         self.btn_openconfig = tk.Button(self.sidebar, text="Открыть конфиг", command=self.open_configfile)
         self.btn_saveconfig = tk.Button(self.sidebar, text="Сохранить конфиг", command=self.save_configfile)
 
@@ -174,7 +172,6 @@ class ChemicalAppUI(Drawer, Sleeper):  # (tk)
                 for point in points:
                     item = point.split(':')
                     self.theory[float(item[0])] = float(item[1])
-                print(self.theory)
             except:
                 return
 
@@ -245,17 +242,17 @@ class ChemicalAppUI(Drawer, Sleeper):  # (tk)
         self.label_multiplier.place(x=10, y=400)
         self.textbox_multiplier.place(x=12, y=425)
 
-        self.btb_run.place(x=12, y=450, width=int(UISize.SIDEBAR_W.value / 3))
-        self.cb_run.place(x=int(UISize.SIDEBAR_W.value / 3) + 20, y=450, width=int(UISize.SIDEBAR_W.value / 2))
-        self.cb_bar.place(x=int(UISize.SIDEBAR_W.value / 3) + 20, y=475, width=int(UISize.SIDEBAR_W.value / 2.5))
-        self.btn_openhist.place(x=int(UISize.SIDEBAR_W.value / 3) + 30, y=500, width=int(UISize.SIDEBAR_W.value / 3))
-        self.btn_pause.place(x=12, y=475, width=int(UISize.SIDEBAR_W.value / 3))
-        self.btn_restart.place(x=12, y=500, width=int(UISize.SIDEBAR_W.value / 3))
-        self.btn_result.place(x=12, y=525, width=int(UISize.SIDEBAR_W.value / 3))
-        self.btn_openconfig.place(x=12, y=565)
-        self.btn_saveconfig.place(x=12, y=590)
+        self.btb_run.place(x=12, y=455, width=int(UISize.SIDEBAR_W.value / 3))
+        self.cb_run.place(x=int(UISize.SIDEBAR_W.value / 3) + 20, y=455, width=int(UISize.SIDEBAR_W.value / 2))
+        self.cb_bar.place(x=int(UISize.SIDEBAR_W.value / 3) + 20, y=480, width=int(UISize.SIDEBAR_W.value / 2.5))
+        self.btn_openhist.place(x=int(UISize.SIDEBAR_W.value / 3) + 30, y=505, width=int(UISize.SIDEBAR_W.value / 3))
+        self.btn_pause.place(x=12, y=480, width=int(UISize.SIDEBAR_W.value / 3))
+        self.btn_restart.place(x=12, y=505, width=int(UISize.SIDEBAR_W.value / 3))
+        self.btn_result.place(x=12, y=530, width=int(UISize.SIDEBAR_W.value / 3))
+        self.btn_openconfig.place(x=12, y=570)
+        self.btn_saveconfig.place(x=12, y=595)
 
-        self.label_sleep.place(x=12, y=630)
+        self.label_sleep.place(x=12, y=640)
         self.scale_sleep.place(x=12, y=660)
 
         self.stat_atoms.place(x=10, y=10)
@@ -286,9 +283,6 @@ class ChemicalAppUI(Drawer, Sleeper):  # (tk)
             elif self.combobox_algo.get() == Algorithm.TPE.value:
                 self._method = TPE(
                     rows=self.N,
-                    addprob=self.b,
-                    transitprob=self.ts,
-                    mergeprob=self.u,
                     drawer=self,
                     sleeper=self,
                     steps=self.G,
@@ -458,11 +452,16 @@ class ChemicalAppUI(Drawer, Sleeper):  # (tk)
             self.textbox_opti["state"] = "disabled"
         else:
             self.textbox_opti["state"] = "normal"
+            self.textbox_count["state"] = "disabled"
         if self.combobox_algo.get() != Algorithm.DOWNHILL.value:
             self.textbox_multiplier.delete(0, 'end')
             self.textbox_multiplier["state"] = "disabled"
         else:
             self.textbox_multiplier["state"] = "normal"
+        if self.combobox_algo.get() == Algorithm.TPE:
+            self.textbox_create["state"] = "disabled"
+            self.textbox_ts["state"] = "disabled"
+            self.textbox_margin["state"] = "disabled"
 
     def start(self) -> None:
         self.configurate()

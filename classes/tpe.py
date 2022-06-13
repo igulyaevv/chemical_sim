@@ -10,9 +10,6 @@ class TPE(BaseComparator):
     def __init__(
             self,
             rows: int,
-            addprob: float,
-            transitprob: float,
-            mergeprob: float,
             theory: dict,
             drawer: Drawer,
             sleeper: Sleeper,
@@ -21,9 +18,9 @@ class TPE(BaseComparator):
         self.study = optuna.create_study()
         super().__init__(
             rows=rows,
-            addprob=addprob,
-            transitprob=transitprob,
-            mergeprob=mergeprob,
+            addprob=0,
+            transitprob=0,
+            mergeprob=0,
             theory=theory,
             drawer=drawer,
             sleeper=sleeper,
@@ -39,13 +36,10 @@ class TPE(BaseComparator):
 
     def _get_next_params(self, trial):
         if self.current_steps == 0:
-            if self.first_trial:
-                self.first_trial = False
-            else:
-                add = trial.suggest_float("add", 0, 1)
-                transit = trial.suggest_float("transit", 0, 1)
-                merge = trial.suggest_float("merge", 0, 1)
-                self.board = Board(self.rows, add, transit, merge)
+            add = trial.suggest_float("add", 0, 1)
+            transit = trial.suggest_float("transit", 0, 1)
+            merge = trial.suggest_float("merge", 0, 1)
+            self.board = Board(self.rows, add, transit, merge)
 
         self.modelling()
 
