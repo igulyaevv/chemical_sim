@@ -14,28 +14,13 @@ class CoordinateDescent(BaseComparator):
             drawer: Drawer,
             sleeper: Sleeper,
             theory: dict,
-            steps: int,
-            multiplier: float):
-        super().__init__(
-            rows=rows,
-            addprob=addprob,
-            transitprob=transitprob,
-            mergeprob=mergeprob,
-            drawer=drawer,
-            sleeper=sleeper,
-            theory=theory,
-            steps=steps
-        )
+            multiplier: float
+    ):
+        super().__init__(rows=rows, drawer=drawer, sleeper=sleeper, theory=theory)
         self.probs = [addprob, transitprob, mergeprob]
         self._hist = []
         self.multiplier = multiplier
         self.first_trial = True
-
-    def modelling(self):
-        while len(self.board.create_bar()) <= len(self.theory) and not self.sleeper.can_pause():
-            self.board.run()
-            self.draw()
-            self.sleeper.sleep()
 
     def optimize(self):
         current_optimize = []

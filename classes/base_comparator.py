@@ -13,21 +13,15 @@ class BaseComparator(Optimization):
     def __init__(
             self,
             rows: int,
-            addprob: float,
-            transitprob: float,
-            mergeprob: float,
             theory: dict,
             drawer: Drawer,
             sleeper: Sleeper,
-            steps: int
     ):
         self.rows = rows
         self.theory = theory
         self.sleeper = sleeper
         self.drawer = drawer
-        self.board = Board(rows=self.rows, addprob=addprob, transitprob=transitprob, mergeprob=mergeprob)
-        self.steps = steps
-        self.current_steps = 0
+        self.board = None
 
     def optimize(self):
         pass
@@ -41,8 +35,14 @@ class BaseComparator(Optimization):
         self.drawer.draw_bar(self.board.create_bar())
         self.drawer.complete_draw()
 
+    def _modelling(self):
+        self.board.run()
+        self.draw()
+        self.sleeper.sleep()
+
     def modelling(self):
-        pass
+        while len(self.board.create_bar()) <= len(self.theory):
+            self._modelling()
 
     @staticmethod
     def hist_compare(theory, result) -> float:

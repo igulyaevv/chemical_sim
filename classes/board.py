@@ -361,22 +361,22 @@ class Board(Drawable):
             'clusters_count': len(self._clusters)
         }  # TODO: сделать валидируюший класс?
 
-    def clusters_conclusion(self, _time: str = None) -> None:
+    def clusters_conclusion(self) -> str:
         """Создает для каждого кластера, полученного в результате моделирования, файл с его описанием"""
+
+        clusters_info = ''
 
         for cluster in self._clusters.values():
             if cluster.status == Status.MERGING:
                 continue
 
-            cluster_info = f'Номер кластера: {cluster.number}\n' \
-                           f'Размер кластера: {cluster.size()}\n' \
-                           f'Границы кластера: ' \
-                           f'по вертикали: {cluster.border_right().x}, {cluster.border_left().x}; ' \
-                           f'по горизонтали: {cluster.border_right().y}, {cluster.border_left().y}\n' \
-                           f'Статус: {cluster.status.value}\n\n' \
-                           f'Изображение кластера:\n\n'
-            cluster_info += cluster.image()
+            clusters_info += f'Номер кластера: {cluster.number}\n' \
+                             f'Размер кластера: {cluster.size()}\n' \
+                             f'Границы кластера: ' \
+                             f'по вертикали: {cluster.border_right().x}, {cluster.border_left().x}; ' \
+                             f'по горизонтали: {cluster.border_right().y}, {cluster.border_left().y}\n' \
+                             f'Статус: {cluster.status.value}\n\n' \
+                             f'Изображение кластера:\n\n'
+            clusters_info += cluster.image() + '\n'
 
-            path = f'results\\ClusterN-{cluster.number}-{_time}.txt'
-            with open(path, 'w') as file:
-                file.write(cluster_info)
+        return clusters_info

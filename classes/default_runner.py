@@ -1,5 +1,6 @@
 import datetime
 
+from classes import Board
 from classes.base_comparator import BaseComparator
 from interfaces.drawer import Drawer
 from interfaces.sleeper import Sleeper
@@ -17,31 +18,19 @@ class DefaultRunner(BaseComparator):
             sleeper: Sleeper,
             steps: int):
 
-        super().__init__(
-            rows=rows,
-            addprob=addprob,
-            transitprob=transitprob,
-            mergeprob=mergeprob,
-            theory=theory,
-            drawer=drawer,
-            sleeper=sleeper,
-            steps=steps
-        )
-
-    def _modelling(self):
-        self.board.run()
-        self.draw()
-        self.sleeper.sleep()
+        super().__init__(rows=rows, theory=theory, drawer=drawer, sleeper=sleeper)
+        self.board = Board(rows=rows, addprob=addprob, transitprob=transitprob, mergeprob=mergeprob)
+        self.steps = steps
+        self.current_steps = 0
 
     def modelling(self):
         if self.theory is None:
             self.current_steps = self.steps
-            while self.current_steps > 0 and not self.sleeper.can_pause():
+            while self.current_steps > 0:
                 self._modelling()
                 self.current_steps -= 1
         else:
-            while len(self.board.create_bar()) <= len(self.theory) and not self.sleeper.can_pause():
-                self._modelling()
+            super().modelling()
 
     def optimize(self):
         self.modelling()
@@ -51,9 +40,10 @@ class DefaultRunner(BaseComparator):
 
     def result(self):
         _time = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
-        with open(f"results\\WeightAnalysis-{_time}.txt", 'w') as file:
+        with open(f"results\\BoardAnalysis-{_time}.txt", 'w') as file:
             _dict = self.board.create_bar()
-            for key in sorted(_dict.keys()):
-                for i in range(_dict[key]):
-                    file.write(str(key) + ' ')
-        self.board.clusters_conclusion(_time)
+            file.write('WeightAnalysis:\n{')
+            for key, value in _dict.items():
+                file.write(str(key) + ': ' + str(value) + ', ')
+            clusters_info = self.board.clusters_conclusion()
+            file.write('}\n\nClusterAnalysis:\n' + clusters_info)
