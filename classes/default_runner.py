@@ -16,8 +16,8 @@ class DefaultRunner(BaseComparator):
             theory: dict,
             drawer: Drawer,
             sleeper: Sleeper,
-            steps: int):
-
+            steps: int
+    ):
         super().__init__(rows=rows, theory=theory, drawer=drawer, sleeper=sleeper)
         self.board = Board(rows=rows, addprob=addprob, transitprob=transitprob, mergeprob=mergeprob)
         self.steps = steps

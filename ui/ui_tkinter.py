@@ -211,7 +211,7 @@ class ChemicalAppUI(Drawer, Sleeper):  # (tk)
             self.G = self.current_G
 
         self.opti_count = int(self.textbox_opti.get()) if self.textbox_opti["state"] == NORMAL else 1
-        self.multiplier = float(self.textbox_multiplier.get()) if self.combobox_algo["state"] == NORMAL else 0.0
+        self.multiplier = float(self.textbox_multiplier.get()) if self.textbox_multiplier["state"] == NORMAL else 0.0
 
     def configurate(self) -> None:
         self.window.config(width=UISize.WIN_W.value, height=UISize.WIN_H.value)
@@ -310,6 +310,7 @@ class ChemicalAppUI(Drawer, Sleeper):  # (tk)
                 self.current_G = int(self.textbox_count.get()) if self.textbox_count and self.textbox_count != '' else 0
                 self._method.change_steps(self.current_G)
 
+        self.textbox_multiplier.config(state=DISABLED)
         self.textbox_opti.config(state=DISABLED)
         self.textbox_count.config(state=DISABLED)
         self.combobox_algo.config(state=DISABLED)

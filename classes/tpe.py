@@ -1,4 +1,6 @@
-import optuna
+from optuna import create_study, samplers
+import json
+import datetime
 
 from classes.base_comparator import BaseComparator
 from classes.board import Board
@@ -9,7 +11,7 @@ from interfaces.sleeper import Sleeper
 class TPE(BaseComparator):
     def __init__(self, rows: int, theory: dict, drawer: Drawer, sleeper: Sleeper):
         super().__init__(rows=rows, theory=theory, drawer=drawer, sleeper=sleeper)
-        self.study = optuna.create_study()
+        self.study = create_study(sampler=samplers.TPESampler())
         self.hists = {}
 
     def _get_next_params(self, trial):
@@ -29,6 +31,7 @@ class TPE(BaseComparator):
         self.study.optimize(lambda trial: self._get_next_params(trial), n_trials=1)
 
     def result(self):
+        _time = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
         result = []
         for trial in self.study.get_trials():
             result.append(
@@ -43,4 +46,10 @@ class TPE(BaseComparator):
                     'hist': self.hists.get(trial.number)
                 }
             )
+
+        with open(f"results\\OptunaOptimization-{_time}.txt", 'w') as file:
+            for trial in result:
+                trial = json.dumps(trial)
+                file.write(trial + '\n')
+
         return result
