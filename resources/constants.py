@@ -30,7 +30,7 @@ class Mode(str, Enum):
 
 class Status(str, Enum):
     ON_SURFACE = "На поверхности"
-    BREAKING_AWAY = "Отделяется от поверхности"
+    LEAVING = "Отделяется от поверхности"
     UP_ALONG_SURFACE = "Двигается вверх вдоль поверхности"
     DOWN_ALONG_SURFACE = "Двигается вниз вдоль поверхности"
     MERGING = "Проходит (прошел) слияние с другим кластером"

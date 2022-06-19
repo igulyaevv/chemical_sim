@@ -1,0 +1,28 @@
+@startuml
+
+interface iDrawer {
+    {abstract} +draw_point(row: Integer, col: Integer, color_idx: Integer): None
+    {abstract} +draw_bar(bar: Dict / Map): None
+}
+
+class ChemicalAppUI {
+    +draw_point(row: Integer, col: Integer, color_idx: Integer): None
+    +draw_bar(bar: Dict / Map): None
+    +start(): None
+}
+
+package "Board Classes" #DDDDDD {
+    class Board
+}
+
+package "Optimization Classes" #DDDDDD {
+    interface Optimization
+    abstract class BaseComparator
+    Optimization <|.. BaseComparator
+    BaseComparator *-- "Board Classes"
+}
+
+iDrawer <|.. ChemicalAppUI
+ChemicalAppUI*-- "Optimization Classes"
+
+@enduml

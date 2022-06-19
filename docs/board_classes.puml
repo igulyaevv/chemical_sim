@@ -1,0 +1,52 @@
+@startuml
+
+interface iDrawer {
+    {abstract} +draw_point(row: Integer, col: Integer, color_idx: Integer): None
+    {abstract} +draw_bar(bar: Dict / Map): None
+}
+
+interface iDrawable {
+    {abstract} +draw(dr: Drawer): None
+}
+
+class Board {
+    -rows: Integer
+    -addprob: Float
+    -transitprob: Float
+    -mergeprob: Float
+    -current_mode: Enum
+    -clusters: Cluster[]
+    -place: Integer[][]
+    -add_atom(row: Integer): Cell
+    -atom_transition(current: Cell): Cell
+    -check_cluster(current: Cell, candidates: Array, temp_place: Array): None
+    -create_cluster(current: Cell): None
+    -cluster_merger(candidates: Array): None
+    -queue_transit(): None
+    +run(): None
+    +draw(dr: Drawer): None
+}
+
+class Cluster {
+    -atoms: Cell[]
+    +add_atom(atom: Cell): None
+    +leave(): None
+    +transition(): None
+    +merger(): None
+    +image(): String
+}
+
+class Cell {
+    +get_x(): Integer
+    +set_x(x: Integer): None
+    +get_y(): Integer
+    +set_y(y: Integer): None
+}
+
+iDrawer <.. iDrawable
+iDrawable <|.. Board
+Board *-- Cluster
+Cell <.. Board
+Cluster *-- Cell
+
+@enduml

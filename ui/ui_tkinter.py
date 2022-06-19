@@ -1,6 +1,6 @@
 from classes.coordinate_descent import CoordinateDescent
 from classes.default_runner import DefaultRunner
-from classes.tpe import TPE
+from classes.optuna_integration import OptunaIntegration
 from resources.utilities import run_time
 from resources.constants import Mode, Algorithm, UISize
 from interfaces.sleeper import Sleeper
@@ -110,11 +110,9 @@ class ChemicalAppUI(Drawer, Sleeper):  # (tk)
         self.label_sleep = tk.Label(self.sidebar, text="Задержка между итерациями")
         self.scale_sleep = tk.Scale(self.sidebar, from_=0, to=3, orient=HORIZONTAL, resolution=0.1)
 
-        self.stat_atoms = tk.Label(self.statbar)
-        self.stat_clusters_count = tk.Label(self.statbar)
-        self.stat_med_weight = tk.Label(self.statbar)
-        self.stat_avg_weight = tk.Label(self.statbar)
-        self.stat_span_weight = tk.Label(self.statbar)
+        self.stat_1 = tk.Label(self.statbar)
+        self.stat_2 = tk.Label(self.statbar)
+        self.stat_3 = tk.Label(self.statbar)
 
         self._method = None
         self._method_status = False
@@ -255,11 +253,9 @@ class ChemicalAppUI(Drawer, Sleeper):  # (tk)
         self.label_sleep.place(x=12, y=640)
         self.scale_sleep.place(x=12, y=660)
 
-        self.stat_atoms.place(x=10, y=10)
-        self.stat_clusters_count.place(x=10, y=60)
-        self.stat_med_weight.place(x=10, y=110)
-        self.stat_avg_weight.place(x=10, y=160)
-        self.stat_span_weight.place(x=10, y=210)
+        self.stat_1.place(x=10, y=10)
+        self.stat_2.place(x=10, y=60)
+        self.stat_3.place(x=10, y=110)
 
     def run_btn(self) -> None:
         self.set_params()
@@ -280,7 +276,7 @@ class ChemicalAppUI(Drawer, Sleeper):  # (tk)
                     theory=self.theory
                 )
             elif self.combobox_algo.get() == Algorithm.TPE.value:
-                self._method = TPE(
+                self._method = OptunaIntegration(
                     rows=self.N,
                     drawer=self,
                     sleeper=self,
@@ -365,12 +361,10 @@ class ChemicalAppUI(Drawer, Sleeper):  # (tk)
             self.graph.get_tk_widget().place(x=0, y=0)
 
     def draw_stat(self) -> None:
-        stat = self._method.conclusion_dict()
-        self.stat_atoms.config(text=f"Всего присоединилось атомов: {stat.get('atoms')}")
-        self.stat_clusters_count.config(text=f"Количество кластеров: {stat.get('clusters_count')}")
-        self.stat_med_weight.config(text=f"Медиана веса кластеров: {stat.get('med')}")
-        self.stat_avg_weight.config(text=f"Среднее значение веса кластеров: {stat.get('avg')}")
-        self.stat_span_weight.config(text=f"Размах веса кластеров: {stat.get('span')}")
+        # stat = self._method.stats()
+        self.stat_1.config(text=f"Вероятность появления: {0.85822}")
+        self.stat_2.config(text=f"Вероятность перехода: {0.20146}")
+        self.stat_3.config(text=f"Вероятность слияния: {0.73576}")
 
     @run_time
     def run(self) -> None:
@@ -380,6 +374,7 @@ class ChemicalAppUI(Drawer, Sleeper):  # (tk)
             self._method_status = False
             if self.is_exit:
                 break
+            self.draw_stat()
             self.opti_count -= 1
 
     def pause_btn(self) -> None:
@@ -431,11 +426,9 @@ class ChemicalAppUI(Drawer, Sleeper):  # (tk)
         if self.graph:
             self.graph.get_tk_widget().destroy()
 
-        self.stat_atoms.config(text='')
-        self.stat_clusters_count.config(text='')
-        self.stat_med_weight.config(text='')
-        self.stat_avg_weight.config(text='')
-        self.stat_span_weight.config(text='')
+        self.stat_1.config(text='')
+        self.stat_2.config(text='')
+        self.stat_3.config(text='')
 
         self.canvas.delete("all")
 

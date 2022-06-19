@@ -263,8 +263,8 @@ class Board(Drawable):
                 self._clusters[repulsion_index].transition()
                 self._cluster_coloring(self._clusters.get(repulsion_index))
 
-    def _queue_transit(self):
-        """Процедура движения кластеров (имитация в дискретной модели), поднимает кластеры со статусом BREAKING_AWAY
+    def _queue_transit(self) -> None:
+        """Процедура движения кластеров (имитация в дискретной модели), поднимает кластеры со статусом LEAVING
         с поверхности, передвигает кластеры со статусами UP_ALONG_SURFACE, DOWN_ALONG_SURFACE вдоль поверхности"""
 
         for cluster in self._clusters.values():
@@ -291,13 +291,13 @@ class Board(Drawable):
                     self._cluster_coloring(self._clusters.get(cluster.number))
                     j -= 1
 
-            if cluster.status == Status.BREAKING_AWAY:
-                if cluster.can_separating():
+            if cluster.status == Status.LEAVING:
+                if cluster.can_leaving():
                     self._check_cluster_for_clusters(cluster.number)
                     if cluster.status in (Status.MERGING, Status.ON_SURFACE, Status.OFF_SURFACE):
                         continue
                     self._cluster_uncoloring(self._clusters.get(cluster.number))
-                    cluster.separation()
+                    cluster.leave()
                     self._cluster_coloring(self._clusters.get(cluster.number))
                 elif cluster.border_left().y != 0:
                     cluster.status = random.choice((Status.UP_ALONG_SURFACE, Status.DOWN_ALONG_SURFACE))
@@ -321,11 +321,11 @@ class Board(Drawable):
                     current = self._atom_transition(current)                                                     # TODO: можно изменить логику, проверять наличие кластера только для кластеров при отсоединении
                     self._create_cluster(current)                                                                #  а атомы присоединять сразу
             if self._place[current.x][current.y] > 0:
-                rand_separation = random.random()
+                rand_leaving = random.random()
                 cluster_number = self._place[current.x][current.y]
-                separation_prob = 1.0 - self._clusters[cluster_number].adjoined / self._clusters[cluster_number].size()
-                if rand_separation < separation_prob:
-                    self._clusters.get(self._place[current.x][current.y]).status = Status.BREAKING_AWAY
+                leaving_prob = 1.0 - self._clusters[cluster_number].adjoined / self._clusters[cluster_number].size()
+                if rand_leaving < leaving_prob:
+                    self._clusters.get(self._place[current.x][current.y]).status = Status.LEAVING
         self._queue_transit()  # TODO: добавить проверку на необходимость запуска, как вариант сделать счетчики на каждый тип кластера запускать queue только, когда это требуется
 
     def draw(self, dr: Drawer) -> None:
@@ -344,7 +344,7 @@ class Board(Drawable):
             bar[cluster.size()] = bar.get(cluster.size()) + 1 if bar.get(cluster.size()) else 1
         return bar
 
-    def conclusion_dict(self) -> dict:
+    def stats(self) -> dict:
         """Возвращает статистику пройденного моделирования"""
 
         sizes = [cluster.size() for cluster in self._clusters.values()] if len(self._clusters) > 0 else [0]
@@ -361,7 +361,7 @@ class Board(Drawable):
             'clusters_count': len(self._clusters)
         }  # TODO: сделать валидируюший класс?
 
-    def clusters_conclusion(self) -> str:
+    def clusters_stats(self) -> str:
         """Создает для каждого кластера, полученного в результате моделирования, файл с его описанием"""
 
         clusters_info = ''

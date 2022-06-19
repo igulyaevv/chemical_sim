@@ -45,5 +45,5 @@ class DefaultRunner(BaseComparator):
             file.write('WeightAnalysis:\n{')
             for key, value in _dict.items():
                 file.write(str(key) + ': ' + str(value) + ', ')
-            clusters_info = self.board.clusters_conclusion()
+            clusters_info = self.board.clusters_stats()
             file.write('}\n\nClusterAnalysis:\n' + clusters_info)

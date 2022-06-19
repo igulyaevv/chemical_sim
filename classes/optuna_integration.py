@@ -8,10 +8,11 @@ from interfaces.drawer import Drawer
 from interfaces.sleeper import Sleeper
 
 
-class TPE(BaseComparator):
+class OptunaIntegration(BaseComparator):
     def __init__(self, rows: int, theory: dict, drawer: Drawer, sleeper: Sleeper):
         super().__init__(rows=rows, theory=theory, drawer=drawer, sleeper=sleeper)
-        self.study = create_study(sampler=samplers.TPESampler())
+        self._sampler = samplers.TPESampler()
+        self.study = create_study(sampler=self._sampler)
         self.hists = {}
 
     def _get_next_params(self, trial):

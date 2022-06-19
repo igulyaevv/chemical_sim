@@ -1,0 +1,62 @@
+@startuml
+
+interface Optimization {
+    {abstract} modelling(): None
+    {abstract} optimize(): None
+    {abstract} result(): None
+}
+
+interface iDrawer {
+    {abstract} +draw_point(row: Integer, col: Integer, color_idx: Integer): None
+    {abstract} +draw_bar(bar: Dict / Map): None
+}
+
+abstract class BaseComparator {
+    -rows: Integer
+    -current_mode: Enum
+    -theory: Dict / Map
+    -dr: Drawer
+    -board: Board
+    -steps: Integer
+    +modelling(): None
+}
+
+class DefaultRunner {
+    -addprob: Float
+    -transitprob: Float
+    -mergeprob: Float
+    +override modelling(): None
+    +optimize(): None
+    +result(): None
+    +change_steps(steps: Integer): None
+}
+
+class CoordinateDescent {
+    -multiplier: Float
+    -addprob: Float
+    -transitprob: Float
+    -mergeprob: Float
+    +optimize(): None
+    +result(): None
+}
+
+class OptunaIntegration {
+    -sampler: optuna.BaseSampler
+    +optimize(): None
+    +result(): None
+}
+
+package "Board Classes" #DDDDDD {
+    Board *-- Cluster
+    Cell <.. Board
+    Cluster *-- Cell
+}
+
+Optimization <|.. BaseComparator
+BaseComparator *-- "Board Classes"
+BaseComparator <|-- DefaultRunner
+BaseComparator <|-- CoordinateDescent
+BaseComparator <|-- OptunaIntegration
+BaseComparator o-- iDrawer
+
+@enduml
